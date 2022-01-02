@@ -1,0 +1,73 @@
+name:                hw3
+version:             0.1.0.0
+github:              "githubuser/hw3"
+license:             BSD3
+author:              "Author name here"
+maintainer:          "example@example.com"
+copyright:           "2021 Author name here"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/hw3#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+  dependencies:
+  - haskeline
+  - megaparsec
+  - prettyprinter
+  - prettyprinter-ansi-terminal
+  - text
+  - scientific
+  - transformers
+  - parser-combinators
+  - containers
+  - bytestring
+  - zlib
+  - serialise
+  - directory
+  - time
+  - random
+  - optparse-applicative
+
+executables:
+  hi:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hw3
+    - haskeline
+    - megaparsec
+    - prettyprinter
+    - prettyprinter-ansi-terminal
+    - text
+    - transformers
+    - containers
+    - optparse-applicative
+
+tests:
+  hw3-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hw3
