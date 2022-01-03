@@ -1,6 +1,26 @@
 module Main where
 
-import Lib
+import System.Console.Haskeline
+    ( defaultSettings, getInputLine, outputStrLn, runInputT, InputT, outputStr )
+import HW3.Parser (parse)
+import Text.Megaparsec (ShowErrorComponent(showErrorComponent))
+import HW3.Evaluator (eval)
+import HW3.Pretty (prettyValue)
 
 main :: IO ()
-main = someFunc
+main = runInputT defaultSettings loop
+   where
+       loop :: InputT IO ()
+       loop = do
+            minput <- getInputLine "% "
+            case minput of
+               Nothing -> return ()
+               Just "quit" -> return ()
+               Just input -> 
+                    case parse input of
+                        Left e -> outputStrLn $ show e
+                        Right r -> do 
+                            res <- eval r
+                            case res of 
+                                (Left err) -> outputStrLn $ show err
+                                (Right val) -> outputStrLn $ show (prettyValue val)
