@@ -39,6 +39,7 @@ library
     , containers
     , directory
     , megaparsec
+    , mtl
     , parser-combinators
     , prettyprinter
     , prettyprinter-ansi-terminal

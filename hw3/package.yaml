@@ -39,6 +39,7 @@ library:
   - directory
   - time
   - random
+  - mtl
 
 executables:
   hi:

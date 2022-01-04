@@ -2,7 +2,7 @@ module HW3.Base (
     HiFun (..),
     HiValue (..),
     HiExpr (..),
-    HiError
+    HiError (..)
     ) where
 
 -- FIXME: deriving Show
