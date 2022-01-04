@@ -53,6 +53,7 @@ pHiExprValue = HiExprValue <$> pHiValue
 
 pHiExpr :: Parser HiExpr
 pHiExpr = do
+  -- TODO: add (expr)
   v <- pHiExprValue
   pHiExpr_ v <|> pure v -- FIXME: ?
 
