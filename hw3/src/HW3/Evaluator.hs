@@ -1,11 +1,12 @@
 module HW3.Evaluator (
-    eval
+    eval, parseKek
     ) where
 
 import HW3.Base (HiExpr (..), HiError (..), HiValue (..), HiFun (HiFunDiv, HiFunAdd, HiFunSub, HiFunMul))
 import Data.Functor.Identity (Identity)
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT, runExcept)
 import Data.Functor.Classes (eq1)
+import HW3.Parser (parse)
 
 -- type ExceptTm m = ExceptT HiError m HiValue
 type ExceptTm m = ExceptT HiError m HiValue
@@ -69,3 +70,8 @@ evalHiExpr (HiExprApply expr args) = evalHiExprApply expr args
 eval :: Monad m => HiExpr -> m (Either HiError HiValue)
 -- eval expr = evalHiExpr expr
 eval expr = runExceptT (evalHiExpr expr)
+
+parseKek :: String -> HiExpr
+parseKek str = case parse str of
+                    (Right x) -> x
+                    _ -> undefined

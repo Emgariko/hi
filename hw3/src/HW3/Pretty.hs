@@ -7,4 +7,4 @@ import Prettyprinter ( Doc )
 import Prettyprinter.Render.Terminal (AnsiStyle)
 
 prettyValue :: HiValue -> Doc AnsiStyle
-prettyValue = undefined 
+prettyValue val = undefined

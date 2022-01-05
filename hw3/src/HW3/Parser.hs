@@ -5,25 +5,29 @@ module HW3.Parser (
 import HW3.Base (HiExpr (..), HiFun (..), HiValue (..))
 import Data.Void (Void)
 import Text.Megaparsec.Error ( ParseErrorBundle )
-import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser)
+import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof))
 import Text.Megaparsec.Char.Lexer (scientific)
 import qualified Data.Scientific
 import Text.Megaparsec.Char (char, space, string)
+import qualified Text.Megaparsec.Char.Lexer as L
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
-parse = runParser pHiExpr ""
+parse = runParser (space *> pHiExpr <* eof) ""
 
 type Parser = Parsec Void String
 
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme space
+
 pHiFun :: Parser HiFun
-pHiFun = choice
+pHiFun = lexeme $ choice
   [ HiFunDiv <$ string "div"
   , HiFunMul <$ string "mul"
   , HiFunAdd <$ string "add"
   , HiFunSub <$ string "sub"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
-pHiValueNumber = scientific
+pHiValueNumber = lexeme scientific
 
 pHiValue :: Parser HiValue
 pHiValue = choice
@@ -33,18 +37,17 @@ pHiValue = choice
 pHiExprArgs :: Parser [HiExpr]
 pHiExprArgs = do
   arg <- pHiExpr
-  rest <- many (char ',' *> space *> pHiExpr)   -- FIXME: where space should be consumed?
+  rest <- many (lexeme (char ',') *> pHiExpr)   -- FIXME: where space should be consumed?
   return (arg : rest)
-
 -- Args   -> HiExpr ArgEnd
 -- ArgEnd -> , HiExpr ArgEnd
 -- ArgEnd -> eps
 
 pHiExpr_ :: HiExpr -> Parser HiExpr
 pHiExpr_ expr = do
-  _ <- char '('
+  _ <- lexeme $ char '('
   exprArgs <- pHiExprArgs <|> pure [] -- FIXME: ?
-  _ <- char ')'
+  _ <- lexeme $ char ')'
   let expr_ = HiExprApply expr exprArgs
   pHiExpr_  expr_ <|> pure expr_
 
@@ -52,10 +55,17 @@ pHiExprValue :: Parser HiExpr
 pHiExprValue = HiExprValue <$> pHiValue
 
 pHiExpr :: Parser HiExpr
-pHiExpr = do
-  -- TODO: add (expr)
-  v <- pHiExprValue
-  pHiExpr_ v <|> pure v -- FIXME: ?
+pHiExpr = (do
+  _ <- lexeme $ char '('
+  e <- pHiExpr
+  _ <- lexeme $ char ')'
+  return e  
+  ) <|> 
+    (do
+  v <- pHiExprValue 
+  pHiExpr_ v <|> pure v)
+
+-- FIXME: (add(1, 2))(3, 4)
 
 -- HiExpr   -> hv HiExpr'
 -- HiExpr'  -> (Args) HiExpr'
