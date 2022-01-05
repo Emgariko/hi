@@ -12,12 +12,22 @@ data HiFun = HiFunDiv
   | HiFunMul
   | HiFunAdd
   | HiFunSub
-  deriving Show
+  | HiFunNot
+  | HiFunAnd
+  | HiFunOr
+  | HiFunLessThan
+  | HiFunGreaterThan
+  | HiFunEquals
+  | HiFunNotLessThan
+  | HiFunNotGreaterThan
+  | HiFunNotEquals
+  | HiFunIf deriving (Show, Eq, Ord)
 
 -- values (numbers, booleans, strings, ...)
-data HiValue = HiValueNumber Rational
+data HiValue = HiValueBool Bool
+  | HiValueNumber Rational
   | HiValueFunction HiFun
-  deriving Show
+  deriving (Show, Eq, Ord)
 
 -- expressions (literals, function calls, ...)
 data HiExpr = HiExprValue HiValue

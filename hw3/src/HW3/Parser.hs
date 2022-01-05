@@ -24,20 +24,36 @@ pHiFun = lexeme $ choice
   [ HiFunDiv <$ string "div"
   , HiFunMul <$ string "mul"
   , HiFunAdd <$ string "add"
-  , HiFunSub <$ string "sub"]
+  , HiFunSub <$ string "sub"
+  , HiFunNotGreaterThan <$ string "not-greater-than"
+  , HiFunNotLessThan <$ string "not-less-than"
+  , HiFunNotEquals <$ string "not-equals"
+  , HiFunNot <$ string "not"
+  , HiFunAnd <$ string "and"
+  , HiFunOr  <$ string "or"
+  , HiFunLessThan <$ string "less-than"
+  , HiFunGreaterThan <$ string "greater-than"
+  , HiFunEquals <$ string "equals"
+  , HiFunIf <$ string "if"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
-pHiValueNumber = lexeme scientific
+pHiValueNumber = L.signed (return ()) $ lexeme scientific
+
+pHiValueBool :: Parser Bool
+pHiValueBool = lexeme $ choice
+  [ True <$ string "true"
+  , False <$ string "false"]
 
 pHiValue :: Parser HiValue
 pHiValue = choice
-  [ HiValueFunction <$> pHiFun,
-    HiValueNumber . toRational <$> pHiValueNumber]
+  [ HiValueFunction <$> pHiFun
+  , HiValueNumber . toRational <$> pHiValueNumber
+  , HiValueBool <$> pHiValueBool]
 
 pHiExprArgs :: Parser [HiExpr]
 pHiExprArgs = do
   arg <- pHiExpr
-  rest <- many (lexeme (char ',') *> pHiExpr)   -- FIXME: where space should be consumed?
+  rest <- many (lexeme (char ',') *> pHiExpr)
   return (arg : rest)
 -- Args   -> HiExpr ArgEnd
 -- ArgEnd -> , HiExpr ArgEnd
@@ -65,8 +81,8 @@ pHiExpr = (do
   v <- pHiExprValue 
   pHiExpr_ v <|> pure v)
 
--- FIXME: (add(1, 2))(3, 4)
-
 -- HiExpr   -> hv HiExpr'
 -- HiExpr'  -> (Args) HiExpr'
 -- HiExpr'  -> eps
+
+-- FIXME: (add(1, 2))(3, 4)
