@@ -4,8 +4,9 @@ module HW3.Base (
     HiExpr (..),
     HiError (..)
     ) where
-      
+
 import Data.Text (Text)
+import Data.Sequence (Seq)
 
 -- FIXME: deriving Show
 
@@ -29,6 +30,9 @@ data HiFun = HiFunDiv
   | HiFunToLower
   | HiFunReverse
   | HiFunTrim 
+  | HiFunList
+  | HiFunRange
+  | HiFunFold
   deriving (Show, Eq, Ord)
 
 -- values (numbers, booleans, strings, ...)
@@ -37,6 +41,7 @@ data HiValue = HiValueBool Bool
   | HiValueFunction HiFun
   | HiValueNull
   | HiValueString Text
+  | HiValueList (Seq HiValue)
   deriving (Show, Eq, Ord)
 
 -- expressions (literals, function calls, ...)

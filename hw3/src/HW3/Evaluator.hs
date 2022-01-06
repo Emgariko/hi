@@ -6,8 +6,7 @@ import HW3.Base (HiExpr (..), HiError (..), HiValue (..), HiFun (..))
 import Data.Functor.Identity (Identity)
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT, runExcept)
 import HW3.Parser (parse)
-import qualified Data.Text
-import Data.Text (toUpper, toLower, strip, intercalate, pack, Text, index, singleton)
+import Data.Text (toUpper, toLower, strip, intercalate, pack, Text, index, singleton, append, length, take, drop, reverse)
 import GHC.Base (stimes)
 import GHC.Real (Ratio((:%)))
 
@@ -37,16 +36,16 @@ getArity HiFunReverse = 1
 getArity HiFunTrim = 1
 
 checkArity :: HiFun -> [HiExpr] -> Bool
-checkArity fun args = getArity fun == length args
+checkArity fun args = getArity fun == Prelude.length args
 
 evalHiFun :: Monad m => HiFun -> [HiValue] -> ExceptTm m
 evalHiFun HiFunAdd [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a + b)
-evalHiFun HiFunAdd [HiValueString a, HiValueString b] = return $ HiValueString $ Data.Text.concat [a, b]
+evalHiFun HiFunAdd [HiValueString a, HiValueString b] = return $ HiValueString $ Data.Text.append a b
 evalHiFun HiFunSub [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a - b)
 evalHiFun HiFunMul [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a * b)
 evalHiFun HiFunMul [HiValueString a, HiValueNumber b] = return $ HiValueString $ stimes (floor b) a    -- TODO: number * str ? 
 evalHiFun HiFunDiv [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a / b)
-evalHiFun HiFunDiv [HiValueString a, HiValueString b] = return $ HiValueString $ intercalate (pack "/") [a, b]
+evalHiFun HiFunDiv [HiValueString a, HiValueString b] = return $ HiValueString $ intercalate (singleton '/') [a, b]
 evalHiFun HiFunNot [HiValueBool a] = return $ HiValueBool $ not a
 evalHiFun HiFunAnd [HiValueBool a, HiValueBool b] = return $ HiValueBool $ a && b
 evalHiFun HiFunOr [HiValueBool a, HiValueBool b] = return $ HiValueBool $ a || b
@@ -85,21 +84,29 @@ checkArityAndThenEval fun args =
             then validateArgsAndThenEval fun args
             else throwError HiErrorArityMismatch
 
-charAt :: Monad m => Text -> [HiValue] -> ExceptTm m
-charAt s [HiValueNumber ind@(a :% b)] = case a `mod` b of
+evalString :: Monad m => Text -> [HiValue] -> ExceptTm m
+evalString s [HiValueNumber ind@(a :% b)] = case a `mod` b of
                                     0 -> let len = Data.Text.length s
                                              ind_ = floor ind in
                                         return $ if (ind >= 0) && (ind_ < len)
                                             then HiValueString $ singleton $ index s ind_
                                             else HiValueNull
                                     _ -> throwError HiErrorInvalidArgument
-charAt _ _ = throwError HiErrorInvalidArgument
+evalString s [HiValueNumber l@(al :% bl),
+            HiValueNumber r@(ar :% br)] = if (al `mod` bl == 0) && (ar `mod` br == 0) 
+                                            then (let len = Data.Text.length s
+                                                      l_ = floor l
+                                                      r_ = floor r 
+                                                    in return $ HiValueString $ Data.Text.take (r_ - l_) (Data.Text.drop l_ s))
+                                            else throwError HiErrorInvalidArgument
+
+evalString _ _ = throwError HiErrorInvalidArgument
 
 evalHiExprApply :: Monad m => HiExpr -> [HiExpr] -> ExceptTm m
 evalHiExprApply (HiExprValue (HiValueFunction hiFun)) args = checkArityAndThenEval hiFun args
 evalHiExprApply (HiExprValue (HiValueString s)) args = do
     argVals <- traverse evalHiExpr args
-    charAt s argVals
+    evalString s argVals
 
 evalHiExprApply (HiExprApply e args) args1 = do
     res <- evalHiExprApply e args

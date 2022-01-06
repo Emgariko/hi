@@ -73,8 +73,8 @@ pHiValue = choice
 
 pHiExprArgs :: Parser [HiExpr]
 pHiExprArgs = do
-  arg <- pHiExpr
-  rest <- many (lexeme (char ',') *> pHiExpr)
+  arg <- pHiExprOps
+  rest <- many (lexeme (char ',') *> pHiExprOps)
   return (arg : rest)
 -- Args   -> HiExpr ArgEnd
 -- ArgEnd -> , HiExpr ArgEnd
@@ -100,8 +100,12 @@ pHiExpr =
   -- return e
   -- ) <|>
     do
-  v <- pHiExprValue <|> parens pHiExpr
+  v <- pHiExprValue <|> parens pHiExprOps
   pHiExpr_ v <|> pure v
+
+-- HiExpr   -> hv HiExpr'
+-- HiExpr'  -> (Args) HiExpr'
+-- HiExpr'  -> eps
 
 pTerm :: Parser HiExpr
 pTerm = choice
@@ -139,6 +143,7 @@ operatorTable =
       return ()
 
 -- TODO: check does (if(true, add, sub))(10, 10) work well.
+-- FIXME: (add(1, 2))(3, 4)
 
 getHiFun :: HiFun -> (HiExpr -> HiExpr -> HiExpr)
 getHiFun fun a b = HiExprApply (HiExprValue (HiValueFunction fun)) [a, b]
@@ -151,9 +156,3 @@ binaryR name f = InfixR (f <$ symbol name)
 
 binary :: String -> (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr
 binary name f = InfixN (f <$ symbol name)
-
--- HiExpr   -> hv HiExpr'
--- HiExpr'  -> (Args) HiExpr'
--- HiExpr'  -> eps
-
--- FIXME: (add(1, 2))(3, 4)
