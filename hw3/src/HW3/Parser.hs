@@ -5,19 +5,27 @@ module HW3.Parser (
 import HW3.Base (HiExpr (..), HiFun (..), HiValue (..))
 import Data.Void (Void)
 import Text.Megaparsec.Error ( ParseErrorBundle )
-import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof))
+import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between)
 import Text.Megaparsec.Char.Lexer (scientific)
 import qualified Data.Scientific
 import Text.Megaparsec.Char (char, space, string)
 import qualified Text.Megaparsec.Char.Lexer as L
+import Data.Text (Text)
+import Control.Monad.Combinators.Expr (makeExprParser, Operator (InfixL, InfixR, InfixN))
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
-parse = runParser (space *> pHiExpr <* eof) ""
+parse = runParser (space *> pHiExprOps <* eof) ""
 
 type Parser = Parsec Void String
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme space
+
+symbol :: String -> Parser String
+symbol = lexeme . string
+
+parens :: Parser a -> Parser a
+parens = between (lexeme $ char '(') (lexeme $ char ')')
 
 pHiFun :: Parser HiFun
 pHiFun = lexeme $ choice
@@ -71,15 +79,65 @@ pHiExprValue :: Parser HiExpr
 pHiExprValue = HiExprValue <$> pHiValue
 
 pHiExpr :: Parser HiExpr
-pHiExpr = (do
-  _ <- lexeme $ char '('
-  e <- pHiExpr
-  _ <- lexeme $ char ')'
-  return e  
-  ) <|> 
-    (do
-  v <- pHiExprValue 
-  pHiExpr_ v <|> pure v)
+pHiExpr =
+  -- (do
+  -- _ <- lexeme $ char '('
+  -- e <- pHiExpr
+  -- _ <- lexeme $ char ')'
+  -- return e
+  -- ) <|>
+    do
+  v <- pHiExprValue <|> parens pHiExpr
+  pHiExpr_ v <|> pure v
+
+pTerm :: Parser HiExpr
+pTerm = choice
+  [ parens pHiExprOps
+  , pHiExpr
+  ]
+
+pHiExprOps :: Parser HiExpr
+pHiExprOps = makeExprParser pTerm operatorTable
+
+operatorTable :: [[Operator Parser HiExpr]]
+operatorTable =
+  [ [ InfixL  (getHiFun HiFunDiv <$ pDiv)
+    -- binaryL "/" $ getHiFun HiFunDiv
+    , binaryL "*" $ getHiFun HiFunMul
+    ]
+  , [ binaryL "+" $ getHiFun HiFunAdd
+    , binaryL "-" $ getHiFun HiFunSub
+    ]
+  , [ binary "<" $ getHiFun HiFunLessThan
+    , binary ">" $ getHiFun HiFunGreaterThan
+    , binary ">=" $ getHiFun HiFunNotLessThan
+    , binary "<=" $ getHiFun HiFunNotGreaterThan
+    , binary "==" $ getHiFun HiFunEquals
+    , binary "/=" $ getHiFun HiFunNotEquals
+    ]
+  , [ binaryR "&&" $ getHiFun HiFunAnd ]
+  , [ binaryR "||" $ getHiFun HiFunOr ]
+  ]
+  where
+    pDiv :: Parser ()
+    pDiv = lexeme . try $ do
+      div <- symbol "/"
+      _ <- notFollowedBy (char '=')
+      return ()
+
+-- TODO: check does (if(true, add, sub))(10, 10) work well.
+
+getHiFun :: HiFun -> (HiExpr -> HiExpr -> HiExpr)
+getHiFun fun a b = HiExprApply (HiExprValue (HiValueFunction fun)) [a, b]
+
+binaryL :: String -> (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr
+binaryL name f = InfixL (f <$ symbol name)
+
+binaryR :: String -> (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr
+binaryR name f = InfixR (f <$ symbol name)
+
+binary :: String -> (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr
+binary name f = InfixN (f <$ symbol name)
 
 -- HiExpr   -> hv HiExpr'
 -- HiExpr'  -> (Args) HiExpr'

@@ -89,3 +89,5 @@ parseKek :: String -> HiExpr
 parseKek str = case parse str of
                     (Right x) -> x
                     _ -> undefined
+
+-- TODO: check does eval (if(true, add, mul)(1, 2)) work well.
