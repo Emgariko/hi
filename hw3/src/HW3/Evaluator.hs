@@ -5,11 +5,15 @@ module HW3.Evaluator (
 import HW3.Base (HiExpr (..), HiError (..), HiValue (..), HiFun (..))
 import Data.Functor.Identity (Identity)
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT, runExcept)
-import Data.Functor.Classes (eq1)
 import HW3.Parser (parse)
+import qualified Data.Text
+import Data.Text (toUpper, toLower, strip, intercalate, pack, Text, index, singleton)
+import GHC.Base (stimes)
+import GHC.Real (Ratio((:%)))
 
 -- type ExceptTm m = ExceptT HiError m HiValue
 type ExceptTm m = ExceptT HiError m HiValue
+-- TODO: rename it
 
 getArity :: HiFun -> Int
 getArity HiFunDiv = 2
@@ -26,26 +30,39 @@ getArity HiFunNotLessThan = 2
 getArity HiFunNotGreaterThan = 2
 getArity HiFunNotEquals = 2
 getArity HiFunIf = 3
+getArity HiFunLength = 1
+getArity HiFunToUpper = 1
+getArity HiFunToLower = 1
+getArity HiFunReverse = 1
+getArity HiFunTrim = 1
 
 checkArity :: HiFun -> [HiExpr] -> Bool
 checkArity fun args = getArity fun == length args
 
 evalHiFun :: Monad m => HiFun -> [HiValue] -> ExceptTm m
 evalHiFun HiFunAdd [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a + b)
+evalHiFun HiFunAdd [HiValueString a, HiValueString b] = return $ HiValueString $ Data.Text.concat [a, b]
 evalHiFun HiFunSub [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a - b)
 evalHiFun HiFunMul [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a * b)
+evalHiFun HiFunMul [HiValueString a, HiValueNumber b] = return $ HiValueString $ stimes (floor b) a    -- TODO: number * str ? 
 evalHiFun HiFunDiv [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a / b)
+evalHiFun HiFunDiv [HiValueString a, HiValueString b] = return $ HiValueString $ intercalate (pack "/") [a, b]
 evalHiFun HiFunNot [HiValueBool a] = return $ HiValueBool $ not a
 evalHiFun HiFunAnd [HiValueBool a, HiValueBool b] = return $ HiValueBool $ a && b
 evalHiFun HiFunOr [HiValueBool a, HiValueBool b] = return $ HiValueBool $ a || b
 evalHiFun HiFunLessThan [a, b] = return $ HiValueBool $ a < b
-evalHiFun HiFunGreaterThan [a, b] = return $ HiValueBool $ a > b 
+evalHiFun HiFunGreaterThan [a, b] = return $ HiValueBool $ a > b
 evalHiFun HiFunEquals [a, b] = return $ HiValueBool $ a == b
 evalHiFun HiFunNotLessThan [a, b] = return $ HiValueBool $ a >= b
 evalHiFun HiFunNotGreaterThan [a, b] = return $ HiValueBool $ a <= b
 evalHiFun HiFunNotEquals [a, b] = return $ HiValueBool $ a /= b
 evalHiFun HiFunIf [HiValueBool cond, a, b] = return $ if cond then a else b
-evalHiFun _ _ = throwError HiErrorInvalidArgument 
+evalHiFun HiFunLength [HiValueString s] = return $ HiValueNumber $ toRational (Data.Text.length s)
+evalHiFun HiFunToUpper [HiValueString s] = return $ HiValueString $ toUpper s
+evalHiFun HiFunToLower [HiValueString s] = return $ HiValueString $ toLower s
+evalHiFun HiFunReverse [HiValueString s] = return $ HiValueString $ Data.Text.reverse s
+evalHiFun HiFunTrim [HiValueString s] = return $ HiValueString $ strip s
+evalHiFun _ _ = throwError HiErrorInvalidArgument
 
 validateArgs :: HiFun -> [HiValue] -> Maybe HiError
 validateArgs HiFunDiv [v1, v2] = case v2 of
@@ -68,8 +85,22 @@ checkArityAndThenEval fun args =
             then validateArgsAndThenEval fun args
             else throwError HiErrorArityMismatch
 
+charAt :: Monad m => Text -> [HiValue] -> ExceptTm m
+charAt s [HiValueNumber ind@(a :% b)] = case a `mod` b of
+                                    0 -> let len = Data.Text.length s
+                                             ind_ = floor ind in
+                                        return $ if (ind >= 0) && (ind_ < len)
+                                            then HiValueString $ singleton $ index s ind_
+                                            else HiValueNull
+                                    _ -> throwError HiErrorInvalidArgument
+charAt _ _ = throwError HiErrorInvalidArgument
+
 evalHiExprApply :: Monad m => HiExpr -> [HiExpr] -> ExceptTm m
 evalHiExprApply (HiExprValue (HiValueFunction hiFun)) args = checkArityAndThenEval hiFun args
+evalHiExprApply (HiExprValue (HiValueString s)) args = do
+    argVals <- traverse evalHiExpr args
+    charAt s argVals
+
 evalHiExprApply (HiExprApply e args) args1 = do
     res <- evalHiExprApply e args
     evalHiExprApply (HiExprValue res) args1
@@ -79,6 +110,8 @@ evalHiExpr :: Monad m => HiExpr -> ExceptTm m
 evalHiExpr (HiExprValue a@(HiValueNumber _)) = return a
 evalHiExpr (HiExprValue a@(HiValueBool _)) = return a
 evalHiExpr (HiExprValue a@(HiValueFunction _)) = return a
+evalHiExpr (HiExprValue a@(HiValueString _)) = return a
+evalHiExpr (HiExprValue a@HiValueNull) = return a
 evalHiExpr (HiExprApply expr args) = evalHiExprApply expr args
 
 eval :: Monad m => HiExpr -> m (Either HiError HiValue)

@@ -5,12 +5,12 @@ module HW3.Parser (
 import HW3.Base (HiExpr (..), HiFun (..), HiValue (..))
 import Data.Void (Void)
 import Text.Megaparsec.Error ( ParseErrorBundle )
-import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between)
+import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between, manyTill)
 import Text.Megaparsec.Char.Lexer (scientific)
 import qualified Data.Scientific
 import Text.Megaparsec.Char (char, space, string)
 import qualified Text.Megaparsec.Char.Lexer as L
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import Control.Monad.Combinators.Expr (makeExprParser, Operator (InfixL, InfixR, InfixN))
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
@@ -42,7 +42,12 @@ pHiFun = lexeme $ choice
   , HiFunLessThan <$ string "less-than"
   , HiFunGreaterThan <$ string "greater-than"
   , HiFunEquals <$ string "equals"
-  , HiFunIf <$ string "if"]
+  , HiFunIf <$ string "if"
+  , HiFunLength <$ string "length"
+  , HiFunToUpper <$ string "to-upper"
+  , HiFunToLower <$ string "to-lower"
+  , HiFunReverse <$ string "reverse"
+  , HiFunTrim <$ string "trim"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
 pHiValueNumber = L.signed (return ()) $ lexeme scientific
@@ -52,11 +57,19 @@ pHiValueBool = lexeme $ choice
   [ True <$ string "true"
   , False <$ string "false"]
 
+charLiteral :: Parser Char
+charLiteral = between (char '\"') (char '\"') L.charLiteral
+
+stringLiteral :: Parser Text
+stringLiteral = lexeme $ pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
+
 pHiValue :: Parser HiValue
 pHiValue = choice
   [ HiValueFunction <$> pHiFun
   , HiValueNumber . toRational <$> pHiValueNumber
-  , HiValueBool <$> pHiValueBool]
+  , HiValueBool <$> pHiValueBool
+  , HiValueNull <$ symbol "null"
+  , HiValueString <$> stringLiteral ]
 
 pHiExprArgs :: Parser [HiExpr]
 pHiExprArgs = do

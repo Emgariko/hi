@@ -4,6 +4,8 @@ module HW3.Base (
     HiExpr (..),
     HiError (..)
     ) where
+      
+import Data.Text (Text)
 
 -- FIXME: deriving Show
 
@@ -21,12 +23,20 @@ data HiFun = HiFunDiv
   | HiFunNotLessThan
   | HiFunNotGreaterThan
   | HiFunNotEquals
-  | HiFunIf deriving (Show, Eq, Ord)
+  | HiFunIf 
+  | HiFunLength
+  | HiFunToUpper
+  | HiFunToLower
+  | HiFunReverse
+  | HiFunTrim 
+  deriving (Show, Eq, Ord)
 
 -- values (numbers, booleans, strings, ...)
 data HiValue = HiValueBool Bool
   | HiValueNumber Rational
   | HiValueFunction HiFun
+  | HiValueNull
+  | HiValueString Text
   deriving (Show, Eq, Ord)
 
 -- expressions (literals, function calls, ...)

@@ -10,3 +10,7 @@ prettyValue :: HiValue -> Doc AnsiStyle
 prettyValue (HiValueNumber val) = pretty (show val)
 prettyValue (HiValueBool val) = pretty (show val)
 prettyValue (HiValueFunction val) = pretty (show val)
+prettyValue (HiValueString val) = pretty (show val)
+prettyValue HiValueNull = pretty (show "null")
+
+-- TODO: fix null prettyPrinting
