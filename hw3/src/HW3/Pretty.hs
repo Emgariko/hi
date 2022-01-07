@@ -12,5 +12,6 @@ prettyValue (HiValueBool val) = pretty (show val)
 prettyValue (HiValueFunction val) = pretty (show val)
 prettyValue (HiValueString val) = pretty (show val)
 prettyValue HiValueNull = pretty (show "null")
+prettyValue (HiValueList seq) = pretty (show seq)
 
 -- TODO: fix null prettyPrinting

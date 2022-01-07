@@ -47,7 +47,10 @@ pHiFun = lexeme $ choice
   , HiFunToUpper <$ string "to-upper"
   , HiFunToLower <$ string "to-lower"
   , HiFunReverse <$ string "reverse"
-  , HiFunTrim <$ string "trim"]
+  , HiFunTrim <$ string "trim"
+  , HiFunList <$ symbol "list"
+  , HiFunRange <$ string "range"
+  , HiFunFold <$ string "fold"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
 pHiValueNumber = L.signed (return ()) $ lexeme scientific
@@ -91,6 +94,14 @@ pHiExpr_ expr = do
 pHiExprValue :: Parser HiExpr
 pHiExprValue = HiExprValue <$> pHiValue
 
+pBracketsList :: Parser HiExpr
+pBracketsList = do
+  _ <- symbol "["
+  arg <- pHiExprOps
+  rest <- many (symbol "," *> pHiExprOps)
+  _ <- symbol "]"
+  return $ HiExprApply (HiExprValue (HiValueFunction HiFunList)) (arg : rest)
+
 pHiExpr :: Parser HiExpr
 pHiExpr =
   -- (do
@@ -100,7 +111,7 @@ pHiExpr =
   -- return e
   -- ) <|>
     do
-  v <- pHiExprValue <|> parens pHiExprOps
+  v <- pHiExprValue <|> parens pHiExprOps <|> pBracketsList
   pHiExpr_ v <|> pure v
 
 -- HiExpr   -> hv HiExpr'
