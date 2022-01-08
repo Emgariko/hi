@@ -3,7 +3,7 @@ module HW3.Pretty (
     ) where
 
 import HW3.Base (HiValue (..))
-import Prettyprinter ( Doc, Pretty (pretty), brackets )
+import Prettyprinter ( Doc, Pretty (pretty), brackets, space )
 import Prettyprinter.Render.Terminal (AnsiStyle)
 import GHC.Real (Ratio((:%)))
 import Data.Scientific (fromRationalRepetendUnlimited)
@@ -22,15 +22,14 @@ prettyValue (HiValueNumber val@(a :% b)) =
                 sign    = if val > 0 then " + " else " - "
             in
             case s of
-                Just _ -> pretty (show quot ++ sign ++ show (abs rem) ++ "/" ++ show b)
+                Just _ -> pretty (
+                        (if quot == 0 then "" else show quot ++ sign) ++ 
+                        ((if quot == 0 && rem < 0 then "-" else "" ) ++ show (abs rem)) ++ "/" ++ show b
+                    )
                 Nothing -> pretty . show $ sc
 
-    -- pretty (show val)
--- prettyValue (HiValueNumber val) = pretty (show val)
 prettyValue (HiValueBool val) = pretty (if val then "true" else "false")
--- prettyValue (HiValueFunction val) = pretty (map toLower . drop 5 $ show val)
 prettyValue (HiValueFunction val) = pretty $ toKebab . fromHumps $ drop 5 $ show val
 prettyValue (HiValueString val) = pretty (show val)
 prettyValue HiValueNull = pretty "null"
-prettyValue (HiValueList xs) = brackets $ pretty $ intercalate ", " $ map (show . prettyValue) $ toList xs
--- TODO: add spaces [_ _]  in here (_)
+prettyValue (HiValueList xs) = brackets $ space <> pretty (intercalate ", " $ map (show . prettyValue) $ toList xs) <> space

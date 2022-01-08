@@ -2,11 +2,13 @@ module HW3.Base (
     HiFun (..),
     HiValue (..),
     HiExpr (..),
-    HiError (..)
+    HiError (..),
+    HiMonad (..),
     ) where
 
 import Data.Text (Text)
 import Data.Sequence (Seq)
+import Data.ByteString (ByteString)
 
 -- FIXME: deriving Show
 
@@ -55,3 +57,13 @@ data HiError = HiErrorInvalidArgument
   | HiErrorArityMismatch
   | HiErrorDivideByZero
   deriving Show
+
+data HiAction =
+    HiActionRead  FilePath
+  | HiActionWrite FilePath ByteString
+  | HiActionMkDir FilePath
+  | HiActionChDir FilePath
+  | HiActionCwd
+
+class Monad m => HiMonad m where
+  runAction :: HiAction -> m HiValue
