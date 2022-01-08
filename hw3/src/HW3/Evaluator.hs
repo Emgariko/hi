@@ -168,6 +168,7 @@ eval :: Monad m => HiExpr -> m (Either HiError HiValue)
 -- eval expr = evalHiExpr expr
 eval expr = runExceptT (evalHiExpr expr)
 
+-- TODO: remove it.
 parseKek :: String -> HiExpr
 parseKek str = case parse str of
                     (Right x) -> x
