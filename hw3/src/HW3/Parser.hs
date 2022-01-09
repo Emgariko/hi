@@ -118,14 +118,13 @@ pHiExpr =
 -- HiExpr'  -> (Args) HiExpr'
 -- HiExpr'  -> eps
 
-pTerm :: Parser HiExpr
-pTerm = choice
-  [ parens pHiExprOps
-  , pHiExpr
-  ]
+-- pTerm :: Parser HiExpr
+-- pTerm = choice
+--   [ pHiExpr
+--   ]
 
 pHiExprOps :: Parser HiExpr
-pHiExprOps = makeExprParser pTerm operatorTable
+pHiExprOps = makeExprParser pHiExpr operatorTable
 
 operatorTable :: [[Operator Parser HiExpr]]
 operatorTable =

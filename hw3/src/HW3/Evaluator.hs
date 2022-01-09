@@ -101,6 +101,8 @@ checkArityAndThenEval fun args =
             then validateArgsAndThenEval fun args
             else throwError HiErrorArityMismatch
 
+-- TODO: slices null arg
+
 evalString :: Monad m => Text -> [HiValue] -> ExceptTm m
 evalString s [HiValueNumber ind@(a :% b)] = case a `mod` b of
                                     0 -> let len = Data.Text.length s
