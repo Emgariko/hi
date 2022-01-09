@@ -193,3 +193,5 @@ binaryR name f = InfixR (f <$ symbol name)
 
 binary :: String -> (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr
 binary name f = InfixN (f <$ symbol name)
+
+-- TODO: check list cases (empty, ...)

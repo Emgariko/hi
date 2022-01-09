@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      HW3.Action
       HW3.Base
       HW3.Evaluator
       HW3.Parser

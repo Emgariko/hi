@@ -71,8 +71,7 @@ data HiError = HiErrorInvalidArgument
   | HiErrorDivideByZero
   deriving Show
 
-data HiAction =
-    HiActionRead  FilePath
+data HiAction = HiActionRead  FilePath
   | HiActionWrite FilePath ByteString
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
