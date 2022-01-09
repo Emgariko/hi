@@ -8,10 +8,13 @@ import Text.Megaparsec.Error ( ParseErrorBundle )
 import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between, manyTill)
 import Text.Megaparsec.Char.Lexer (scientific)
 import qualified Data.Scientific
-import Text.Megaparsec.Char (char, space, string)
+import Text.Megaparsec.Char (char, space, string, hexDigitChar)
 import qualified Text.Megaparsec.Char.Lexer as L
 import Data.Text (Text, pack)
 import Control.Monad.Combinators.Expr (makeExprParser, Operator (InfixL, InfixR, InfixN))
+import Data.ByteString (ByteString, pack)
+import Data.Char (digitToInt)
+import Data.Word (Word8)
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
 parse = runParser (space *> pHiExprOps <* eof) ""
@@ -50,7 +53,15 @@ pHiFun = lexeme $ choice
   , HiFunTrim <$ string "trim"
   , HiFunList <$ symbol "list"
   , HiFunRange <$ string "range"
-  , HiFunFold <$ string "fold"]
+  , HiFunFold <$ string "fold"
+  , HiFunPackBytes <$ string "pack-bytes"
+  , HiFunUnpackBytes <$ string "unpack-bytes"
+  , HiFunZip <$ string "zip"
+  , HiFunUnzip <$ string "unzip"
+  , HiFunEncodeUtf8 <$ string "encode-utf8"
+  , HiFunDecodeUtf8 <$ string "decode-utf8"
+  , HiFunSerialise <$ string "serialise"
+  , HiFunDeserialise <$ string "deserialise"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
 pHiValueNumber = L.signed (return ()) $ lexeme scientific
@@ -64,7 +75,22 @@ charLiteral :: Parser Char
 charLiteral = between (char '\"') (char '\"') L.charLiteral
 
 stringLiteral :: Parser Text
-stringLiteral = lexeme $ pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
+stringLiteral = lexeme $ Data.Text.pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
+
+pHiValueByte :: Parser Word8
+pHiValueByte = lexeme $ do
+  a0 <- hexDigitChar
+  a1 <- hexDigitChar
+  let val = fromIntegral $ digitToInt a0 * 16 + digitToInt a1
+  return val
+
+-- TODO: check upper/lower-cased letters in hexadecimal format
+pHiValueBytes :: Parser ByteString
+pHiValueBytes = do
+  _ <- symbol "[#"
+  bytes <- many pHiValueByte -- TODO: is empty bytes array valid?  
+  _ <- symbol "#]"
+  return $ Data.ByteString.pack bytes
 
 pHiValue :: Parser HiValue
 pHiValue = choice
@@ -72,7 +98,8 @@ pHiValue = choice
   , HiValueNumber . toRational <$> pHiValueNumber
   , HiValueBool <$> pHiValueBool
   , HiValueNull <$ symbol "null"
-  , HiValueString <$> stringLiteral ]
+  , HiValueString <$> stringLiteral
+  , HiValueBytes <$> pHiValueBytes ]
 
 pHiExprArgs :: Parser [HiExpr]
 pHiExprArgs = do

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module HW3.Base (
     HiFun (..),
     HiValue (..),
@@ -9,6 +11,8 @@ module HW3.Base (
 import Data.Text (Text)
 import Data.Sequence (Seq)
 import Data.ByteString (ByteString)
+import qualified GHC.Generics as Generics
+import Codec.Serialise (Serialise)
 
 -- FIXME: deriving Show
 
@@ -35,7 +39,15 @@ data HiFun = HiFunDiv
   | HiFunList
   | HiFunRange
   | HiFunFold
-  deriving (Show, Eq, Ord)
+  | HiFunPackBytes
+  | HiFunUnpackBytes
+  | HiFunEncodeUtf8
+  | HiFunDecodeUtf8
+  | HiFunZip
+  | HiFunUnzip
+  | HiFunSerialise
+  | HiFunDeserialise
+  deriving (Show, Eq, Ord, Generics.Generic)
 
 -- values (numbers, booleans, strings, ...)
 data HiValue = HiValueBool Bool
@@ -44,7 +56,8 @@ data HiValue = HiValueBool Bool
   | HiValueNull
   | HiValueString Text
   | HiValueList (Seq HiValue)
-  deriving (Show, Eq, Ord)
+  | HiValueBytes ByteString
+  deriving (Show, Eq, Ord, Generics.Generic)
 
 -- expressions (literals, function calls, ...)
 data HiExpr = HiExprValue HiValue
@@ -63,7 +76,12 @@ data HiAction =
   | HiActionWrite FilePath ByteString
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
-  | HiActionCwd
+  | HiActionCwd 
+  deriving Generics.Generic
+
+instance Serialise HiFun
+instance Serialise HiValue
+instance Serialise HiAction
 
 class Monad m => HiMonad m where
   runAction :: HiAction -> m HiValue

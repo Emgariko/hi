@@ -3,7 +3,7 @@ module HW3.Pretty (
     ) where
 
 import HW3.Base (HiValue (..))
-import Prettyprinter ( Doc, Pretty (pretty), brackets, space )
+import Prettyprinter ( Doc, Pretty (pretty), brackets, space, (<+>) )
 import Prettyprinter.Render.Terminal (AnsiStyle)
 import GHC.Real (Ratio((:%)))
 import Data.Scientific (fromRationalRepetendUnlimited)
@@ -11,6 +11,8 @@ import Data.Char (toLower, isUpper)
 import Text.Casing (fromHumps, toKebab)
 import Data.List (intercalate)
 import Data.Foldable (Foldable(toList))
+import Data.ByteString (unpack)
+import Text.Printf (printf)
 
 prettyValue :: HiValue -> Doc AnsiStyle
 prettyValue (HiValueNumber val@(a :% b)) =
@@ -23,7 +25,7 @@ prettyValue (HiValueNumber val@(a :% b)) =
             in
             case s of
                 Just _ -> pretty (
-                        (if quot == 0 then "" else show quot ++ sign) ++ 
+                        (if quot == 0 then "" else show quot ++ sign) ++
                         ((if quot == 0 && rem < 0 then "-" else "" ) ++ show (abs rem)) ++ "/" ++ show b
                     )
                 Nothing -> pretty . show $ sc
@@ -33,3 +35,4 @@ prettyValue (HiValueFunction val) = pretty $ toKebab . fromHumps $ drop 5 $ show
 prettyValue (HiValueString val) = pretty (show val)
 prettyValue HiValueNull = pretty "null"
 prettyValue (HiValueList xs) = brackets $ space <> pretty (intercalate ", " $ map (show . prettyValue) $ toList xs) <> space
+prettyValue (HiValueBytes bts) = brackets (pretty "#" <+> pretty (unwords $ map (printf "%02x") $ unpack bts) <+> pretty "#")
