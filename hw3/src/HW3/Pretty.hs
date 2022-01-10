@@ -3,7 +3,7 @@ module HW3.Pretty (
     ) where
 
 import HW3.Base (HiValue (..))
-import Prettyprinter ( Doc, Pretty (pretty), brackets, space, (<+>) )
+import Prettyprinter ( Doc, Pretty (pretty), brackets, space, (<+>), viaShow )
 import Prettyprinter.Render.Terminal (AnsiStyle)
 import GHC.Real (Ratio((:%)))
 import Data.Scientific (fromRationalRepetendUnlimited)
@@ -36,3 +36,4 @@ prettyValue (HiValueString val) = pretty (show val)
 prettyValue HiValueNull = pretty "null"
 prettyValue (HiValueList xs) = brackets $ space <> pretty (intercalate ", " $ map (show . prettyValue) $ toList xs) <> space
 prettyValue (HiValueBytes bts) = brackets (pretty "#" <+> pretty (unwords $ map (printf "%02x") $ unpack bts) <+> pretty "#")
+prettyValue (HiValueAction act) = viaShow act --TODO: do norm prerttValue

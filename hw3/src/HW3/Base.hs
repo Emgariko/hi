@@ -6,6 +6,7 @@ module HW3.Base (
     HiExpr (..),
     HiError (..),
     HiMonad (..),
+    HiAction (..)
     ) where
 
 import Data.Text (Text)
@@ -47,7 +48,16 @@ data HiFun = HiFunDiv
   | HiFunUnzip
   | HiFunSerialise
   | HiFunDeserialise
+  | HiFunRead
+  | HiFunWrite
+  | HiFunMkDir
+  | HiFunChDir
   deriving (Show, Eq, Ord, Generics.Generic)
+
+-- | HiFunRead
+  -- | HiFunWrite
+  -- | HiFunMkDir
+  -- | HiFunChDir
 
 -- values (numbers, booleans, strings, ...)
 data HiValue = HiValueBool Bool
@@ -57,11 +67,13 @@ data HiValue = HiValueBool Bool
   | HiValueString Text
   | HiValueList (Seq HiValue)
   | HiValueBytes ByteString
+  | HiValueAction HiAction
   deriving (Show, Eq, Ord, Generics.Generic)
 
 -- expressions (literals, function calls, ...)
 data HiExpr = HiExprValue HiValue
   | HiExprApply HiExpr [HiExpr]
+  | HiExprRun HiExpr
   deriving Show
 
 -- evaluation errors (invalid arguments, ...)
@@ -76,7 +88,7 @@ data HiAction = HiActionRead  FilePath
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
   | HiActionCwd 
-  deriving Generics.Generic
+  deriving (Show, Eq, Ord, Generics.Generic)
 
 instance Serialise HiFun
 instance Serialise HiValue

@@ -2,7 +2,7 @@ module HW3.Parser (
     parse, pHiFun, pHiValue, pHiExpr
     ) where
 
-import HW3.Base (HiExpr (..), HiFun (..), HiValue (..))
+import HW3.Base (HiExpr (..), HiFun (..), HiValue (..), HiAction (..))
 import Data.Void (Void)
 import Text.Megaparsec.Error ( ParseErrorBundle )
 import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between, manyTill)
@@ -15,6 +15,7 @@ import Control.Monad.Combinators.Expr (makeExprParser, Operator (InfixL, InfixR,
 import Data.ByteString (ByteString, pack)
 import Data.Char (digitToInt)
 import Data.Word (Word8)
+import Data.Functor (($>))
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
 parse = runParser (space *> pHiExprOps <* eof) ""
@@ -61,7 +62,11 @@ pHiFun = lexeme $ choice
   , HiFunEncodeUtf8 <$ string "encode-utf8"
   , HiFunDecodeUtf8 <$ string "decode-utf8"
   , HiFunSerialise <$ string "serialise"
-  , HiFunDeserialise <$ string "deserialise"]
+  , HiFunDeserialise <$ string "deserialise"
+  , HiFunRead <$ string "read"
+  , HiFunWrite <$ string "write"
+  , HiFunMkDir <$ string "mkdir"
+  , HiFunChDir <$ string "cd"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
 pHiValueNumber = L.signed (return ()) $ lexeme scientific
@@ -85,10 +90,11 @@ pHiValueByte = lexeme $ do
   return val
 
 -- TODO: check upper/lower-cased letters in hexadecimal format
+-- TODO: check can [ #     #    ] be parsed ?
 pHiValueBytes :: Parser ByteString
 pHiValueBytes = do
   _ <- symbol "[#"
-  bytes <- many pHiValueByte -- TODO: is empty bytes array valid?  
+  bytes <- many pHiValueByte -- TODO: is empty bytes array valid?
   _ <- symbol "#]"
   return $ Data.ByteString.pack bytes
 
@@ -99,7 +105,8 @@ pHiValue = choice
   , HiValueBool <$> pHiValueBool
   , HiValueNull <$ symbol "null"
   , HiValueString <$> stringLiteral
-  , HiValueBytes <$> pHiValueBytes ]
+  , HiValueBytes <$> pHiValueBytes
+  , HiValueAction HiActionCwd <$ symbol "cwd"]
 
 pHiExprArgs :: Parser [HiExpr]
 pHiExprArgs = do
@@ -110,13 +117,22 @@ pHiExprArgs = do
 -- ArgEnd -> , HiExpr ArgEnd
 -- ArgEnd -> eps
 
-pHiExpr_ :: HiExpr -> Parser HiExpr
-pHiExpr_ expr = do
+pHiExprParenthesesArgs :: HiExpr -> Parser HiExpr
+pHiExprParenthesesArgs expr = do
   _ <- lexeme $ char '('
   exprArgs <- pHiExprArgs <|> pure [] -- FIXME: ?
   _ <- lexeme $ char ')'
-  let expr_ = HiExprApply expr exprArgs
-  pHiExpr_  expr_ <|> pure expr_
+  return $ HiExprApply expr exprArgs
+
+pHiExprRun :: HiExpr -> Parser HiExpr
+pHiExprRun expr = do
+  _ <- symbol "!"
+  return $ HiExprRun expr
+
+pHiExpr_ :: HiExpr -> Parser HiExpr
+pHiExpr_ expr = do
+  expr_ <- pHiExprRun expr <|> pHiExprParenthesesArgs expr
+  pHiExpr_ expr_ <|> pure expr_
 
 pHiExprValue :: Parser HiExpr
 pHiExprValue = HiExprValue <$> pHiValue
