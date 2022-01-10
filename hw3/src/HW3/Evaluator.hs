@@ -20,6 +20,9 @@ import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Codec.Compression.Zlib (CompressParams(compressLevel), compressWith, bestCompression, defaultCompressParams, decompressWith, defaultDecompressParams)
 import Data.ByteString.Lazy (fromStrict, toStrict)
 import Codec.Serialise (serialise, deserialise)
+import Text.Read (readMaybe)
+import Data.Time (addUTCTime)
+import Data.Time.Clock (diffUTCTime)
 
 -- type ExceptTm m = ExceptT HiError m HiValue
 type ExceptTm m = ExceptT HiError m HiValue
@@ -60,6 +63,7 @@ getArity HiFunRead = 1
 getArity HiFunWrite = 2
 getArity HiFunMkDir = 1
 getArity HiFunChDir = 1
+getArity HiFunParseTime = 1
 
 checkArity :: HiFun -> [HiExpr] -> Bool
 checkArity fun args = let arity = getArity fun in
@@ -71,8 +75,10 @@ evalHiFun :: HiMonad m => HiFun -> [HiValue] -> ExceptTm m
 evalHiFun HiFunAdd [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a + b)
 evalHiFun HiFunAdd [HiValueString a, HiValueString b] = return $ HiValueString $ Data.Text.append a b
 evalHiFun HiFunAdd [HiValueList a, HiValueList b] = return $ HiValueList $ a >< b
+evalHiFun HiFunAdd [HiValueTime a, HiValueNumber b] = return $ HiValueTime $ addUTCTime (realToFrac b) a
 evalHiFun HiFunAdd [HiValueBytes a, HiValueBytes b] = return $ HiValueBytes $ Data.ByteString.append a b
 evalHiFun HiFunSub [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a - b)
+evalHiFun HiFunSub [HiValueTime a, HiValueTime b] = return $ HiValueNumber $ toRational $ diffUTCTime a b
 evalHiFun HiFunMul [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a * b)                 -- TODO: check if it's an integer
 evalHiFun HiFunMul [HiValueString a, HiValueNumber b] = return $ HiValueString $ stimes (floor b) a    -- TODO: number * str ? 
 evalHiFun HiFunMul [HiValueList l, HiValueNumber b] = return $ HiValueList $ stimes (floor b) l       -- TODO: check if it's an integer
@@ -137,6 +143,8 @@ evalHiFun a@HiFunWrite [v1@(HiValueString path), HiValueString s] = evalHiFun a 
 evalHiFun HiFunWrite [HiValueString path, HiValueBytes bts] = return $ HiValueAction $ HiActionWrite (Data.Text.unpack path) bts
 evalHiFun HiFunMkDir [HiValueString path] = return $ HiValueAction $ HiActionMkDir (Data.Text.unpack path)
 evalHiFun HiFunChDir [HiValueString path] = return $ HiValueAction $ HiActionChDir (Data.Text.unpack path)
+evalHiFun HiFunParseTime [HiValueString s] =
+    return $ maybe HiValueNull HiValueTime (readMaybe $ Data.Text.unpack s)
 evalHiFun _ _ = throwError HiErrorInvalidArgument
 
 validateArgs :: HiFun -> [HiValue] -> Maybe HiError
@@ -248,6 +256,7 @@ evalHiExpr (HiExprValue a@HiValueNull) = return a
 evalHiExpr (HiExprValue a@(HiValueList _)) = return a
 evalHiExpr (HiExprValue a@(HiValueBytes _)) = return a -- TODO: ?
 evalHiExpr (HiExprValue a@(HiValueAction _)) = return a
+evalHiExpr (HiExprValue a@(HiValueTime _)) = return a
 evalHiExpr (HiExprRun expr) = do
     x <- evalHiExpr expr
     case x of
@@ -255,7 +264,6 @@ evalHiExpr (HiExprRun expr) = do
         _ -> throwError HiErrorInvalidArgument
 
          -- TODO: which error should be thrown?
-
 evalHiExpr (HiExprApply expr args) = evalHiExprApply expr args
 
 eval :: HiMonad m => HiExpr -> m (Either HiError HiValue)

@@ -66,7 +66,8 @@ pHiFun = lexeme $ choice
   , HiFunRead <$ string "read"
   , HiFunWrite <$ string "write"
   , HiFunMkDir <$ string "mkdir"
-  , HiFunChDir <$ string "cd"]
+  , HiFunChDir <$ string "cd"
+  , HiFunParseTime <$ string "parse-time"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
 pHiValueNumber = L.signed (return ()) $ lexeme scientific
@@ -106,7 +107,8 @@ pHiValue = choice
   , HiValueNull <$ symbol "null"
   , HiValueString <$> stringLiteral
   , HiValueBytes <$> pHiValueBytes
-  , HiValueAction HiActionCwd <$ symbol "cwd"]
+  , HiValueAction HiActionCwd <$ symbol "cwd"
+  , HiValueAction HiActionNow <$ symbol "now"]
 
 pHiExprArgs :: Parser [HiExpr]
 pHiExprArgs = do

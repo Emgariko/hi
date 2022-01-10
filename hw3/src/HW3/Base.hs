@@ -14,6 +14,7 @@ import Data.Sequence (Seq)
 import Data.ByteString (ByteString)
 import qualified GHC.Generics as Generics
 import Codec.Serialise (Serialise)
+import Data.Time (UTCTime)
 
 -- FIXME: deriving Show
 
@@ -52,6 +53,7 @@ data HiFun = HiFunDiv
   | HiFunWrite
   | HiFunMkDir
   | HiFunChDir
+  | HiFunParseTime
   deriving (Show, Eq, Ord, Generics.Generic)
 
 -- | HiFunRead
@@ -68,6 +70,7 @@ data HiValue = HiValueBool Bool
   | HiValueList (Seq HiValue)
   | HiValueBytes ByteString
   | HiValueAction HiAction
+  | HiValueTime UTCTime
   deriving (Show, Eq, Ord, Generics.Generic)
 
 -- expressions (literals, function calls, ...)
@@ -88,6 +91,7 @@ data HiAction = HiActionRead  FilePath
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
   | HiActionCwd 
+  | HiActionNow
   deriving (Show, Eq, Ord, Generics.Generic)
 
 instance Serialise HiFun

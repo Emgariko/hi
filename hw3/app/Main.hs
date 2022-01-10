@@ -43,7 +43,7 @@ main :: IO ()
 main = runInputT defaultSettings loop
    where
        loop :: InputT IO ()
-       perms = fromList [AllowRead, AllowWrite]
+       perms = fromList [AllowRead, AllowWrite, AllowTime]
        loop = do
             minput <- getInputLine "hi>"
             case minput of

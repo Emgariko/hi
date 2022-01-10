@@ -12,9 +12,11 @@ import System.Directory (listDirectory, doesDirectoryExist, doesFileExist, creat
 import Data.Sequence (fromList)
 import qualified Data.Text
 import Data.Text.Encoding (decodeUtf8')
+import Data.Time (getCurrentTime)
 
 data HiPermission = AllowRead
     | AllowWrite
+    | AllowTime
     deriving (Show, Eq, Ord)
 
 data PermissionException =
@@ -88,5 +90,10 @@ instance HiMonad HIO where
         checkPermissionAndThenDo AllowRead (do
             dir <- getCurrentDirectory
             return $ HiValueString . Data.Text.pack $ dir
+        )
+    }
+    runAction HiActionNow = HIO { runHIO =
+        checkPermissionAndThenDo AllowTime (
+            HiValueTime <$> getCurrentTime
         )
     }
