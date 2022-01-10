@@ -42,12 +42,15 @@ instance Monad HIO where
             runHIO inner x
         }) (fmap f m)
 
+checkPermissionAndThenDo :: HiPermission -> IO a -> Set HiPermission -> IO a
+checkPermissionAndThenDo requiredPerm d perms =
+        if notMember requiredPerm perms
+        then throwIO $ PermissionRequired requiredPerm
+        else d
+
 instance HiMonad HIO where
     runAction (HiActionRead path) = HIO { runHIO =
-        \perms ->
-            if notMember AllowRead perms
-            then throwIO $ PermissionRequired AllowRead
-            else do
+        checkPermissionAndThenDo AllowRead (do
                 dirExists <- doesDirectoryExist path
                 fileExists <- doesFileExist path
                 if dirExists
@@ -56,42 +59,34 @@ instance HiMonad HIO where
                     return $ HiValueList $ fromList $ map (HiValueString . Data.Text.pack) dirContent
                 else if fileExists
                     then do
-                        fileContent <- ByteString.readFile path 
+                        fileContent <- ByteString.readFile path
                         return $ case decodeUtf8' fileContent of
                             Left _ -> HiValueBytes fileContent
                             Right text -> HiValueString text
-                    else 
+                    else
                         return HiValueNull
+        )
     }
     runAction (HiActionWrite path bts) = HIO { runHIO =
-        \perms ->
-            if notMember AllowWrite perms
-            then throwIO $ PermissionRequired AllowWrite
-            else do
-                ByteString.writeFile path bts
-                return HiValueNull
+        checkPermissionAndThenDo AllowWrite (do
+            ByteString.writeFile path bts
+            return HiValueNull
+        )
     }
-    runAction (HiActionMkDir path) = HIO { runHIO = 
-        \perms -> 
-            if notMember AllowWrite perms
-            then throwIO $ PermissionRequired AllowWrite
-            else do
-                _ <- createDirectory path
-                return HiValueNull
+    runAction (HiActionMkDir path) = HIO { runHIO =
+        checkPermissionAndThenDo AllowWrite (do
+            _ <- createDirectory path
+            return HiValueNull
+        )
     }
-    runAction (HiActionChDir path) = HIO { runHIO = 
-        \perms ->
-            if notMember AllowRead perms
-            then throwIO $ PermissionRequired AllowRead
-            else do
-                _ <- setCurrentDirectory path
-                return HiValueNull
+    runAction (HiActionChDir path) = HIO { runHIO =
+        checkPermissionAndThenDo AllowRead (do
+            _ <- setCurrentDirectory path
+            return HiValueNull)
     }
-    runAction HiActionCwd = HIO { runHIO = 
-        \perms ->
-            if notMember AllowRead perms
-            then throwIO $ PermissionRequired AllowRead
-            else do
-                dir <- getCurrentDirectory
-                return $ HiValueString . Data.Text.pack $ dir
+    runAction HiActionCwd = HIO { runHIO =
+        checkPermissionAndThenDo AllowRead (do
+            dir <- getCurrentDirectory
+            return $ HiValueString . Data.Text.pack $ dir
+        )
     }
