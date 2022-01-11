@@ -163,9 +163,10 @@ evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] =
     let aa = fromIntegral $ div a1 a2
         bb = fromIntegral $ div b1 b2
         -- TODO: change all div's to znamenatel' value
-    in if isInteger a && isInteger b && (minBound :: Int) < aa && aa < (maxBound :: Int) && aa <= bb
+    in if isInteger a && isInteger b && (minBound :: Int) <= aa && aa <= (maxBound :: Int) && aa <= bb
     then return $ HiValueAction $ HiActionRand aa bb
     else throwError HiErrorInvalidArgument
+    -- TODO: fix case in test
 evalHiFun HiFunEcho [HiValueString s] = return $ HiValueAction $ HiActionEcho s
 evalHiFun _ _ = throwError HiErrorInvalidArgument
 
