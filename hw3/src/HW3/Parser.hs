@@ -2,22 +2,22 @@ module HW3.Parser (
     parse, pHiFun, pHiValue, pHiExpr
     ) where
 
-import HW3.Base (HiExpr (..), HiFun (..), HiValue (..), HiAction (..))
-import Data.Void (Void)
-import Text.Megaparsec.Error ( ParseErrorBundle )
-import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between, manyTill, optional, sepBy1, satisfy)
-import Text.Megaparsec.Char.Lexer (scientific)
-import qualified Data.Scientific
-import Text.Megaparsec.Char (char, space, string, hexDigitChar, digitChar)
-import qualified Text.Megaparsec.Char.Lexer as L
-import Data.Text (Text, pack)
-import Control.Monad.Combinators.Expr (makeExprParser, Operator (InfixL, InfixR, InfixN))
+import Control.Monad.Combinators.Expr (Operator (InfixL, InfixN, InfixR), makeExprParser)
 import Data.ByteString (ByteString, pack)
 import Data.Char (digitToInt, isAlpha, isAlphaNum)
-import Data.Word (Word8)
 import Data.Functor (($>))
 import Data.Maybe (fromMaybe)
--- import Data.List (intercalate)
+import qualified Data.Scientific
+import Data.Text (Text, pack)
+import Data.Void (Void)
+import Data.Word (Word8)
+import HW3.Base (HiAction (..), HiExpr (..), HiFun (..), HiValue (..))
+import Text.Megaparsec (MonadParsec (eof, notFollowedBy, try), Parsec, between, choice, many,
+                        manyTill, optional, parseTest, runParser, satisfy, sepBy1, (<|>))
+import Text.Megaparsec.Char (char, digitChar, hexDigitChar, space, string)
+import Text.Megaparsec.Char.Lexer (scientific)
+import qualified Text.Megaparsec.Char.Lexer as L
+import Text.Megaparsec.Error (ParseErrorBundle)
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
 parse = runParser (space *> pHiExprOps <* eof) ""
@@ -72,10 +72,6 @@ pHiFun = lexeme $ choice
   , HiFunParseTime <$ string "parse-time"
   , HiFunRand <$ string "rand"
   , HiFunEcho <$ string "echo"
-  -- , HiFunCount <$ string "count"
-  -- , HiFunKeys <$ string "keys"
-  -- , HiFunValues <$ string "values"
-  -- , HiFunInvert <$ string "invert"
   ]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
@@ -122,9 +118,6 @@ pHiExprArgs = do
   arg <- pHiExprOps
   rest <- many (lexeme (char ',') *> pHiExprOps)
   return (arg : rest)
--- Args   -> HiExpr ArgEnd
--- ArgEnd -> , HiExpr ArgEnd
--- ArgEnd -> eps
 
 pHiExprParenthesesArgs :: HiExpr -> Parser HiExpr
 pHiExprParenthesesArgs expr = do
@@ -138,17 +131,9 @@ pHiExprRun expr = do
   _ <- symbol "!"
   return $ HiExprRun expr
 
--- pHiExprDotAccess :: HiExpr -> Parser HiExpr
--- pHiExprDotAccess expr = do
---   _ <- symbol "."
---   separated <- ((:) <$> satisfy isAlpha <*> many (satisfy isAlphaNum)) `sepBy1` char '-'
---   let str = intercalate "-" separated
---   return $ HiExprApply expr [HiExprValue $ (HiValueString . Data.Text.pack) str]
-
 pHiExpr_ :: HiExpr -> Parser HiExpr
 pHiExpr_ expr = do
-  expr_ <- pHiExprRun expr <|> pHiExprParenthesesArgs expr 
-  -- <|> pHiExprDotAccess expr
+  expr_ <- pHiExprRun expr <|> pHiExprParenthesesArgs expr
   pHiExpr_ expr_ <|> pure expr_
 
 pHiExprValue :: Parser HiExpr
@@ -162,35 +147,9 @@ pBracketsList = do
   let args_ = fromMaybe [] args
   return $ HiExprApply (HiExprValue (HiValueFunction HiFunList)) args_
 
--- pDictKeyValue :: Parser (HiExpr, HiExpr)
--- pDictKeyValue = do
---   key <- pHiExpr
---   _ <- symbol ":"
---   value <- pHiExpr
---   return (key, value)
-
--- -- pDictContent :: Parser [(HiExpr, HiExpr)]
--- -- pDictContent = do
--- --   pair
-
--- pDict :: Parser HiExpr
--- pDict = do
---   _ <- symbol "{"
---   pair <- optional pDictKeyValue
---   let content = case pair of
---                 Just keyVal -> do
---                   rest <- many (lexeme (char ',') *> pDictKeyValue)
---                   return $ HiExprDict (keyVal : rest)
---                 Nothing -> return $ HiExprDict []
---   res <- content             
---   -- content <- many (lexeme (char ',') *> pDictKeyValue)
---   _ <- symbol "}"
---   return res
-
 pHiExpr :: Parser HiExpr
 pHiExpr = do
-  v <- pHiExprValue <|> parens pHiExprOps <|> pBracketsList 
-  -- <|> pDict
+  v <- pHiExprValue <|> parens pHiExprOps <|> pBracketsList
   pHiExpr_ v <|> pure v
 
 pHiExprOps :: Parser HiExpr

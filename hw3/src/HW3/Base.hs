@@ -9,13 +9,13 @@ module HW3.Base (
     HiAction (..)
     ) where
 
-import Data.Text (Text)
-import Data.Sequence (Seq)
-import Data.ByteString (ByteString)
-import qualified GHC.Generics as Generics
 import Codec.Serialise (Serialise)
-import Data.Time (UTCTime)
+import Data.ByteString (ByteString)
 import Data.Map (Map)
+import Data.Sequence (Seq)
+import Data.Text (Text)
+import Data.Time (UTCTime)
+import qualified GHC.Generics as Generics
 
 -- function names (e.g. div, sort, length, ...)
 data HiFun = HiFunDiv
@@ -31,12 +31,12 @@ data HiFun = HiFunDiv
   | HiFunNotLessThan
   | HiFunNotGreaterThan
   | HiFunNotEquals
-  | HiFunIf 
+  | HiFunIf
   | HiFunLength
   | HiFunToUpper
   | HiFunToLower
   | HiFunReverse
-  | HiFunTrim 
+  | HiFunTrim
   | HiFunList
   | HiFunRange
   | HiFunFold
@@ -86,7 +86,7 @@ data HiAction = HiActionRead FilePath
   | HiActionWrite FilePath ByteString
   | HiActionMkDir FilePath
   | HiActionChDir FilePath
-  | HiActionCwd 
+  | HiActionCwd
   | HiActionNow
   | HiActionRand Int Int
   | HiActionEcho Text

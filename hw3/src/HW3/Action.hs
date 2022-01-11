@@ -3,23 +3,25 @@ module HW3.Action (
         HIO(..),
         PermissionException (..)
     ) where
+
 import Control.Exception (Exception, throwIO)
-import Data.Set (Set, notMember)
-import HW3.Base (HiMonad (..), HiAction (..), HiValue (..))
 import Control.Monad (ap)
-import qualified Data.ByteString as ByteString
 import Data.ByteString (readFile)
-import System.Directory (listDirectory, doesDirectoryExist, doesFileExist, createDirectory, getCurrentDirectory, setCurrentDirectory)
+import qualified Data.ByteString as ByteString
 import Data.Sequence (fromList)
+import Data.Set (Set, notMember)
 import qualified Data.Text
 import Data.Text.Encoding (decodeUtf8')
 import Data.Time (getCurrentTime)
-import System.Random.Stateful (uniformR, getStdRandom)
+import HW3.Base (HiAction (..), HiMonad (..), HiValue (..))
+import System.Directory (createDirectory, doesDirectoryExist, doesFileExist, getCurrentDirectory,
+                         listDirectory, setCurrentDirectory)
+import System.Random.Stateful (getStdRandom, uniformR)
 
 data HiPermission = AllowRead
     | AllowWrite
     | AllowTime
-    deriving (Show, Eq, Ord, Enum, Bounded)
+    deriving (Show, Eq, Ord)
 
 data PermissionException =
   PermissionRequired HiPermission
@@ -49,7 +51,7 @@ checkPermissionAndThenDo :: Maybe HiPermission -> IO a -> Set HiPermission -> IO
 checkPermissionAndThenDo maybePerm d perms =
     case maybePerm of
         Nothing -> d
-        (Just requiredPerm) -> if notMember requiredPerm perms  
+        (Just requiredPerm) -> if notMember requiredPerm perms
                         then throwIO $ PermissionRequired requiredPerm
                         else d
 
@@ -66,7 +68,7 @@ instance HiMonad HIO where
                     then do
                         fileContent <- ByteString.readFile path
                         return $ case decodeUtf8' fileContent of
-                            Left _ -> HiValueBytes fileContent
+                            Left _     -> HiValueBytes fileContent
                             Right text -> HiValueString text
                     else
                         return HiValueNull
@@ -106,7 +108,7 @@ instance HiMonad HIO where
             return $ (HiValueNumber . toRational) v
         )
     }
-    runAction (HiActionEcho text) = HIO { runHIO = 
+    runAction (HiActionEcho text) = HIO { runHIO =
         checkPermissionAndThenDo (Just AllowWrite) (do
             putStrLn $ Data.Text.unpack text
             return HiValueNull
