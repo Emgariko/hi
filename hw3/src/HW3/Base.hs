@@ -79,14 +79,14 @@ data HiValue = HiValueBool Bool
 data HiExpr = HiExprValue HiValue
   | HiExprApply HiExpr [HiExpr]
   | HiExprRun HiExpr
-  deriving Show
-
+  deriving (Eq, Show)
+-- TODO: remove
 -- evaluation errors (invalid arguments, ...)
 data HiError = HiErrorInvalidArgument
   | HiErrorInvalidFunction
   | HiErrorArityMismatch
   | HiErrorDivideByZero
-  deriving Show
+  deriving (Eq, Show)
 
 data HiAction = HiActionRead FilePath
   | HiActionWrite FilePath ByteString

@@ -11,7 +11,7 @@ import HW3.Parser (parse)
 import Data.Text (toUpper, toLower, strip, intercalate, pack, Text, index, singleton, append, length, take, drop, reverse, dropEnd, unpack)
 import GHC.Base (stimes)
 import GHC.Real (Ratio((:%)))
-import Data.Sequence (fromList, ViewL ((:<)), viewl, length, reverse, (><), take, Seq, drop, singleton, index, splitAt)
+import Data.Sequence (fromList, ViewL ((:<), EmptyL), viewl, length, reverse, (><), take, Seq, drop, singleton, index, splitAt)
 import qualified Data.ByteString
 import Data.Foldable (Foldable(toList))
 import Data.Word (Word8)
@@ -85,9 +85,17 @@ evalHiFun HiFunAdd [HiValueBytes a, HiValueBytes b] = return $ HiValueBytes $ Da
 evalHiFun HiFunSub [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a - b)
 evalHiFun HiFunSub [HiValueTime a, HiValueTime b] = return $ HiValueNumber $ toRational $ diffUTCTime a b
 evalHiFun HiFunMul [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a * b)                 -- TODO: check if it's an integer
-evalHiFun HiFunMul [HiValueString a, HiValueNumber b] = return $ HiValueString $ stimes (floor b) a    -- TODO: number * str ? 
-evalHiFun HiFunMul [HiValueList l, HiValueNumber b] = return $ HiValueList $ stimes (floor b) l       -- TODO: check if it's an integer
-evalHiFun HiFunMul [HiValueBytes a, HiValueNumber b] = return $ HiValueBytes $ stimes (floor b) a
+evalHiFun HiFunMul [HiValueString a, HiValueNumber b] = if isInteger b && b > 0
+                                                        then return $ HiValueString $ stimes (floor b) a    -- TODO: number * str ? 
+                                                        else throwError HiErrorInvalidArgument
+evalHiFun HiFunMul [HiValueList l, HiValueNumber b] =
+    if isInteger b && b > 0
+    then return $ HiValueList $ stimes (floor b) l       -- TODO: check if it's an integer
+    else throwError HiErrorInvalidArgument
+evalHiFun HiFunMul [HiValueBytes a, HiValueNumber b] =
+    if isInteger b && b > 0
+    then return $ HiValueBytes $ stimes (floor b) a
+    else throwError HiErrorInvalidArgument
 -- evalHiFun HiFunMul [HiValueList l, HiValueNumber b] = return $ HiValueList stimes b l
 evalHiFun HiFunDiv [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a / b)
 evalHiFun HiFunDiv [HiValueString a, HiValueString b] = return $ HiValueString $ intercalate (Data.Text.singleton '/') [a, b]
@@ -113,8 +121,9 @@ evalHiFun HiFunTrim [HiValueString s] = return $ HiValueString $ strip s
 evalHiFun HiFunList l = return $ HiValueList $ fromList l
 evalHiFun HiFunRange [HiValueNumber l, HiValueNumber r] = return $ HiValueList $ fromList $ map HiValueNumber [l..r]
 evalHiFun HiFunFold [HiValueFunction fun, HiValueList l] =
-            let (x :< xs) = viewl l
-                in foldM (\x y -> evalHiFun fun [x, y]) x xs
+        case viewl l of
+            EmptyL -> return HiValueNull
+            (x :< xs) -> foldM (\x y -> evalHiFun fun [x, y]) x xs
 evalHiFun HiFunPackBytes [HiValueList l] =
     let values = map fromValue $ toList l
         ok = all (\case
@@ -150,9 +159,13 @@ evalHiFun HiFunMkDir [HiValueString path] = return $ HiValueAction $ HiActionMkD
 evalHiFun HiFunChDir [HiValueString path] = return $ HiValueAction $ HiActionChDir (Data.Text.unpack path)
 evalHiFun HiFunParseTime [HiValueString s] =
     return $ maybe HiValueNull HiValueTime (readMaybe $ Data.Text.unpack s)
-evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] = if isInteger a && isInteger b
-                                                                    then return $ HiValueAction $ HiActionRand (fromIntegral $ div a1 a2) (fromIntegral $ div b1 b2)
-                                                                    else throwError HiErrorInvalidArgument
+evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] = 
+    let aa = fromIntegral $ div a1 a2
+        bb = fromIntegral $ div b1 b2
+        -- TODO: change all div's to znamenatel' value
+    in if isInteger a && isInteger b && (minBound :: Int) < aa && aa < (maxBound :: Int) && aa <= bb
+    then return $ HiValueAction $ HiActionRand aa bb
+    else throwError HiErrorInvalidArgument
 evalHiFun HiFunEcho [HiValueString s] = return $ HiValueAction $ HiActionEcho s
 evalHiFun _ _ = throwError HiErrorInvalidArgument
 

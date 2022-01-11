@@ -1,6 +1,7 @@
 module HW3.Action (
         HiPermission(..),
-        HIO(..)
+        HIO(..),
+        PermissionException (..)
     ) where
 import Control.Exception (Exception, throwIO)
 import Data.Set (Set, notMember)
@@ -18,7 +19,8 @@ import System.Random.Stateful (uniformR, getStdRandom)
 data HiPermission = AllowRead
     | AllowWrite
     | AllowTime
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Enum, Bounded)
+    -- TODO: remove Enum, Bounded
 
 data PermissionException =
   PermissionRequired HiPermission

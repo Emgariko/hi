@@ -8,7 +8,7 @@ import Text.Megaparsec.Error ( ParseErrorBundle )
 import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between, manyTill, optional)
 import Text.Megaparsec.Char.Lexer (scientific)
 import qualified Data.Scientific
-import Text.Megaparsec.Char (char, space, string, hexDigitChar)
+import Text.Megaparsec.Char (char, space, string, hexDigitChar, digitChar)
 import qualified Text.Megaparsec.Char.Lexer as L
 import Data.Text (Text, pack)
 import Control.Monad.Combinators.Expr (makeExprParser, Operator (InfixL, InfixR, InfixN))
@@ -73,7 +73,7 @@ pHiFun = lexeme $ choice
   , HiFunEcho <$ string "echo"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
-pHiValueNumber = L.signed (return ()) $ lexeme scientific
+pHiValueNumber = L.signed space $ lexeme scientific
 
 pHiValueBool :: Parser Bool
 pHiValueBool = lexeme $ choice
@@ -89,7 +89,7 @@ stringLiteral = lexeme $ Data.Text.pack <$> (char '\"' *> manyTill L.charLiteral
 pHiValueByte :: Parser Word8
 pHiValueByte = lexeme $ do
   a0 <- hexDigitChar
-  a1 <- hexDigitChar
+  a1 <- hexDigitChar <* notFollowedBy digitChar
   let val = fromIntegral $ digitToInt a0 * 16 + digitToInt a1
   return val
 
@@ -182,10 +182,10 @@ operatorTable =
   , [ binaryL "+" $ getHiFun HiFunAdd
     , binaryL "-" $ getHiFun HiFunSub
     ]
-  , [ binary "<" $ getHiFun HiFunLessThan
-    , binary ">" $ getHiFun HiFunGreaterThan
+  , [ binary "<=" $ getHiFun HiFunNotGreaterThan
+    , binary "<" $ getHiFun HiFunLessThan
     , binary ">=" $ getHiFun HiFunNotLessThan
-    , binary "<=" $ getHiFun HiFunNotGreaterThan
+    , binary ">" $ getHiFun HiFunGreaterThan
     , binary "==" $ getHiFun HiFunEquals
     , binary "/=" $ getHiFun HiFunNotEquals
     ]

@@ -6,7 +6,7 @@ import HW3.Base (HiValue (..), HiFun (..), HiAction (..))
 import Prettyprinter ( Doc, Pretty (pretty), brackets, space, (<+>), viaShow, enclose, encloseSep, comma, rparen, lparen )
 import Prettyprinter.Render.Terminal (AnsiStyle)
 import GHC.Real (Ratio((:%)))
-import Data.Scientific (fromRationalRepetendUnlimited)
+import Data.Scientific (fromRationalRepetendUnlimited, formatScientific, FPFormat (Fixed))
 import Data.Char (toLower, isUpper)
 import Text.Casing (fromHumps, toKebab)
 import Data.List (intercalate)
@@ -29,7 +29,8 @@ prettyValue (HiValueNumber val@(a :% b)) =
                         (if quot == 0 then "" else show quot ++ sign) ++
                         ((if quot == 0 && rem < 0 then "-" else "" ) ++ show (abs rem)) ++ "/" ++ show b
                     )
-                Nothing -> pretty . show $ sc
+                Nothing -> pretty $ formatScientific Fixed Nothing sc
+                
 
 prettyValue (HiValueBool val) = pretty (if val then "true" else "false")
 prettyValue (HiValueFunction val) = case val of
