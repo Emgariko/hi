@@ -64,12 +64,16 @@ getArity HiFunWrite = 2
 getArity HiFunMkDir = 1
 getArity HiFunChDir = 1
 getArity HiFunParseTime = 1
+getArity HiFunRand = 2
 
 checkArity :: HiFun -> [HiExpr] -> Bool
 checkArity fun args = let arity = getArity fun in
                     case arity of
                         -1 -> True
                         _ -> arity == Prelude.length args
+
+isInteger :: Rational -> Bool
+isInteger (a :% b) = a `mod` b == 0
 
 evalHiFun :: HiMonad m => HiFun -> [HiValue] -> ExceptTm m
 evalHiFun HiFunAdd [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a + b)
@@ -145,6 +149,10 @@ evalHiFun HiFunMkDir [HiValueString path] = return $ HiValueAction $ HiActionMkD
 evalHiFun HiFunChDir [HiValueString path] = return $ HiValueAction $ HiActionChDir (Data.Text.unpack path)
 evalHiFun HiFunParseTime [HiValueString s] =
     return $ maybe HiValueNull HiValueTime (readMaybe $ Data.Text.unpack s)
+evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] = if isInteger a && isInteger b
+                                                                    then return $ HiValueAction $ HiActionRand (fromIntegral $ div a1 a2) (fromIntegral $ div b1 b2)
+                                                                    else throwError HiErrorInvalidArgument
+-- HiValueAction . HiActionRand a b
 evalHiFun _ _ = throwError HiErrorInvalidArgument
 
 validateArgs :: HiFun -> [HiValue] -> Maybe HiError

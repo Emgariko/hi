@@ -13,6 +13,7 @@ import Data.Sequence (fromList)
 import qualified Data.Text
 import Data.Text.Encoding (decodeUtf8')
 import Data.Time (getCurrentTime)
+import System.Random.Stateful (uniformR, getStdRandom)
 
 data HiPermission = AllowRead
     | AllowWrite
@@ -44,15 +45,17 @@ instance Monad HIO where
             runHIO inner x
         }) (fmap f m)
 
-checkPermissionAndThenDo :: HiPermission -> IO a -> Set HiPermission -> IO a
-checkPermissionAndThenDo requiredPerm d perms =
-        if notMember requiredPerm perms
-        then throwIO $ PermissionRequired requiredPerm
-        else d
+checkPermissionAndThenDo :: Maybe HiPermission -> IO a -> Set HiPermission -> IO a
+checkPermissionAndThenDo maybePerm d perms =
+    case maybePerm of
+        Nothing -> d
+        (Just requiredPerm) -> if notMember requiredPerm perms  
+                        then throwIO $ PermissionRequired requiredPerm
+                        else d
 
 instance HiMonad HIO where
     runAction (HiActionRead path) = HIO { runHIO =
-        checkPermissionAndThenDo AllowRead (do
+        checkPermissionAndThenDo (Just AllowRead) (do
                 dirExists <- doesDirectoryExist path
                 fileExists <- doesFileExist path
                 if dirExists
@@ -70,30 +73,36 @@ instance HiMonad HIO where
         )
     }
     runAction (HiActionWrite path bts) = HIO { runHIO =
-        checkPermissionAndThenDo AllowWrite (do
+        checkPermissionAndThenDo (Just AllowWrite) (do
             ByteString.writeFile path bts
             return HiValueNull
         )
     }
     runAction (HiActionMkDir path) = HIO { runHIO =
-        checkPermissionAndThenDo AllowWrite (do
+        checkPermissionAndThenDo (Just AllowWrite) (do
             _ <- createDirectory path
             return HiValueNull
         )
     }
     runAction (HiActionChDir path) = HIO { runHIO =
-        checkPermissionAndThenDo AllowRead (do
+        checkPermissionAndThenDo (Just AllowRead) (do
             _ <- setCurrentDirectory path
             return HiValueNull)
     }
     runAction HiActionCwd = HIO { runHIO =
-        checkPermissionAndThenDo AllowRead (do
+        checkPermissionAndThenDo (Just AllowRead) (do
             dir <- getCurrentDirectory
             return $ HiValueString . Data.Text.pack $ dir
         )
     }
     runAction HiActionNow = HIO { runHIO =
-        checkPermissionAndThenDo AllowTime (
+        checkPermissionAndThenDo (Just AllowTime) (
             HiValueTime <$> getCurrentTime
+        )
+    }
+    runAction (HiActionRand l r) = HIO { runHIO =
+        checkPermissionAndThenDo Nothing (do
+            v <- getStdRandom (uniformR (l, r))
+            return $ (HiValueNumber . toRational) v
         )
     }
