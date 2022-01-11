@@ -6,6 +6,7 @@ import Control.Monad.Combinators.Expr (Operator (InfixL, InfixN, InfixR), makeEx
 import Data.ByteString (ByteString, pack)
 import Data.Char (digitToInt, isAlpha, isAlphaNum)
 import Data.Functor (($>))
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import qualified Data.Scientific
 import Data.Text (Text, pack)
@@ -72,7 +73,10 @@ pHiFun = lexeme $ choice
   , HiFunParseTime <$ string "parse-time"
   , HiFunRand <$ string "rand"
   , HiFunEcho <$ string "echo"
-  ]
+  , HiFunCount <$ string "count"
+  , HiFunKeys <$ string "keys"
+  , HiFunValues <$ string "values"
+  , HiFunInvert <$ string "invert"]
 
 pHiValueNumber :: Parser Data.Scientific.Scientific
 pHiValueNumber = L.signed space $ lexeme scientific
@@ -131,9 +135,16 @@ pHiExprRun expr = do
   _ <- symbol "!"
   return $ HiExprRun expr
 
+pHiExprDotAccess :: HiExpr -> Parser HiExpr
+pHiExprDotAccess expr = do
+  _ <- symbol "."
+  separated <- ((:) <$> satisfy isAlpha <*> many (satisfy isAlphaNum)) `sepBy1` char '-'
+  let str = intercalate "-" separated
+  return $ HiExprApply expr [HiExprValue $ (HiValueString . Data.Text.pack) str]
+
 pHiExpr_ :: HiExpr -> Parser HiExpr
 pHiExpr_ expr = do
-  expr_ <- pHiExprRun expr <|> pHiExprParenthesesArgs expr
+  expr_ <- pHiExprRun expr <|> pHiExprParenthesesArgs expr <|> pHiExprDotAccess expr
   pHiExpr_ expr_ <|> pure expr_
 
 pHiExprValue :: Parser HiExpr
@@ -147,9 +158,29 @@ pBracketsList = do
   let args_ = fromMaybe [] args
   return $ HiExprApply (HiExprValue (HiValueFunction HiFunList)) args_
 
+pDictKeyValue :: Parser (HiExpr, HiExpr)
+pDictKeyValue = do
+  key <- pHiExpr
+  _ <- symbol ":"
+  value <- pHiExpr
+  return (key, value)
+
+pDict :: Parser HiExpr
+pDict = do
+  _ <- symbol "{"
+  pair <- optional pDictKeyValue
+  let content = case pair of
+                Just keyVal -> do
+                  rest <- many (lexeme (char ',') *> pDictKeyValue)
+                  return $ HiExprDict (keyVal : rest)
+                Nothing -> return $ HiExprDict []
+  res <- content
+  _ <- symbol "}"
+  return res
+
 pHiExpr :: Parser HiExpr
 pHiExpr = do
-  v <- pHiExprValue <|> parens pHiExprOps <|> pBracketsList
+  v <- pHiExprValue <|> parens pHiExprOps <|> pBracketsList <|> pDict
   pHiExpr_ v <|> pure v
 
 pHiExprOps :: Parser HiExpr

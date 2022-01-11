@@ -14,6 +14,9 @@ import qualified Data.ByteString
 import Data.ByteString.Lazy (fromStrict, toStrict)
 import Data.Foldable (Foldable (toList))
 import Data.Functor.Identity (Identity)
+import Data.Map (Map, empty, fromList, (!?))
+import Data.Map.Strict (elems, keys)
+import qualified Data.Maybe
 import Data.Sequence (Seq, ViewL ((:<), EmptyL), drop, fromList, index, length, reverse, singleton,
                       splitAt, take, viewl, (><))
 import Data.Text (Text, append, drop, dropEnd, index, intercalate, length, pack, reverse, singleton,
@@ -69,6 +72,10 @@ getArity HiFunChDir          = 1
 getArity HiFunParseTime      = 1
 getArity HiFunRand           = 2
 getArity HiFunEcho           = 1
+getArity HiFunCount          = 1
+getArity HiFunKeys           = 1
+getArity HiFunValues         = 1
+getArity HiFunInvert         = 1
 
 checkArity :: HiFun -> [HiExpr] -> Bool
 checkArity fun args = let arity = getArity fun in
@@ -120,21 +127,21 @@ evalHiFun HiFunReverse [HiValueString s] = return $ HiValueString $ Data.Text.re
 evalHiFun HiFunReverse [HiValueList l] = return $ HiValueList $ Data.Sequence.reverse l
 evalHiFun HiFunReverse [HiValueBytes bts] = return $ HiValueBytes $ Data.ByteString.reverse bts
 evalHiFun HiFunTrim [HiValueString s] = return $ HiValueString $ strip s
-evalHiFun HiFunList l = return $ HiValueList $ fromList l
-evalHiFun HiFunRange [HiValueNumber l, HiValueNumber r] = return $ HiValueList $ fromList $ map HiValueNumber [l..r]
+evalHiFun HiFunList l = return $ HiValueList $ Data.Sequence.fromList l
+evalHiFun HiFunRange [HiValueNumber l, HiValueNumber r] = return $ HiValueList $ Data.Sequence.fromList $ Prelude.map HiValueNumber [l..r]
 evalHiFun HiFunFold [HiValueFunction fun, HiValueList l] =
         case viewl l of
             EmptyL    -> return HiValueNull
             (x :< xs) -> foldM (\x y -> evalHiFun fun [x, y]) x xs
 evalHiFun HiFunPackBytes [HiValueList l] =
-    let values = map fromValue $ toList l
+    let values = Prelude.map fromValue $ toList l
         ok = all (\case
                 Just _ -> True
                 _ -> False)
             values
         in if ok
         then return $ HiValueBytes $ Data.ByteString.pack $
-            map (\case
+            Prelude.map (\case
                     Just w -> w
                     _ -> error "unexcpected")
              values
@@ -145,7 +152,7 @@ evalHiFun HiFunPackBytes [HiValueList l] =
                                         then Just $ fromIntegral $ div x y
                                         else Nothing
         fromValue _ = Nothing
-evalHiFun HiFunUnpackBytes [HiValueBytes bts] = return $ HiValueList $ fromList $ map (HiValueNumber . toRational) $ Data.ByteString.unpack bts
+evalHiFun HiFunUnpackBytes [HiValueBytes bts] = return $ HiValueList $ Data.Sequence.fromList $ Prelude.map (HiValueNumber . toRational) $ Data.ByteString.unpack bts
 evalHiFun HiFunEncodeUtf8 [HiValueString s] = return $ HiValueBytes $ encodeUtf8 s
 evalHiFun HiFunDecodeUtf8 [HiValueBytes bts] = return $ case decodeUtf8' bts of
                                                             Left _  -> HiValueNull
@@ -169,6 +176,8 @@ evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] =
     then return $ HiValueAction $ HiActionRand (fromIntegral aa) (fromIntegral bb)
     else throwError HiErrorInvalidArgument
 evalHiFun HiFunEcho [HiValueString s] = return $ HiValueAction $ HiActionEcho s
+evalHiFun HiFunKeys [HiValueDict dict] = return $ HiValueList . Data.Sequence.fromList $ keys dict
+evalHiFun HiFunValues [HiValueDict dict] = return $ HiValueList . Data.Sequence.fromList $ elems dict
 evalHiFun _ _ = throwError HiErrorInvalidArgument
 
 validateArgs :: HiFun -> [HiValue] -> Maybe HiError
@@ -284,6 +293,10 @@ evalBytes bts [HiValueNumber l@(al :% bl),
                                             else throwError HiErrorInvalidArgument
 evalBytes _ _ = throwError HiErrorInvalidArgument
 
+evalDict :: HiMonad m => Map HiValue HiValue -> HiValue -> ExceptTm m
+evalDict dict val =
+    return $ Data.Maybe.fromMaybe HiValueNull (dict !? val)
+
 evalHiExprApply :: HiMonad m => HiExpr -> [HiExpr] -> ExceptTm m
 evalHiExprApply (HiExprValue (HiValueFunction hiFun)) args = checkArityAndThenEval hiFun args
 evalHiExprApply (HiExprValue (HiValueString s)) args = do
@@ -298,6 +311,14 @@ evalHiExprApply (HiExprValue (HiValueBytes bts)) args = do
 evalHiExprApply (HiExprApply e args) args1 = do
     res <- evalHiExprApply e args
     evalHiExprApply (HiExprValue res) args1
+evalHiExprApply dict@(HiExprDict _) args = do
+    dict_ <- evalHiExpr dict
+    let (HiValueDict dictt) = dict_
+    case args of
+        [x] -> do
+            arg <- evalHiExpr x
+            evalDict dictt arg
+        _ -> throwError HiErrorArityMismatch
 evalHiExprApply _ _ = throwError HiErrorInvalidFunction
 
 evalHiExpr :: HiMonad m => HiExpr -> ExceptTm m
@@ -307,6 +328,10 @@ evalHiExpr (HiExprRun expr) = do
     case x of
         (HiValueAction act) -> lift $ runAction act
         _                   -> throwError HiErrorInvalidArgument
+evalHiExpr (HiExprDict pairs) = do
+    left <- mapM (evalHiExpr . fst) pairs
+    right <- mapM (evalHiExpr . snd) pairs
+    return $ HiValueDict $ Data.Map.fromList $ zip left right
 evalHiExpr (HiExprApply expr args) = evalHiExprApply expr args
 
 eval :: HiMonad m => HiExpr -> m (Either HiError HiValue)
