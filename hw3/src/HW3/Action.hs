@@ -19,7 +19,7 @@ import System.Random.Stateful (uniformR, getStdRandom)
 data HiPermission = AllowRead
     | AllowWrite
     | AllowTime
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Ord, Enum, Bounded)
 
 data PermissionException =
   PermissionRequired HiPermission

@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module HW3.Evaluator (
-    eval, parseKek
+    eval
     ) where
 
 import HW3.Base (HiExpr (..), HiError (..), HiValue (..), HiFun (..), HiMonad (runAction), HiAction (..))
@@ -163,12 +163,12 @@ evalHiFun HiFunChDir [HiValueString path] = return $ HiValueAction $ HiActionChD
 evalHiFun HiFunParseTime [HiValueString s] =
     return $ maybe HiValueNull HiValueTime (readMaybe $ Data.Text.unpack s)
 evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] =
-    let aa = fromIntegral $ div a1 a2
-        bb = fromIntegral $ div b1 b2
-    in if isInteger a && isInteger b && (minBound :: Int) <= aa && aa <= (maxBound :: Int) && aa <= bb
-    then return $ HiValueAction $ HiActionRand aa bb
+    let aa = a1
+        bb = b1
+    in if a <= b && isInteger a && isInteger b && fromIntegral (minBound :: Int) <= aa && aa <= fromIntegral (maxBound :: Int) 
+        && fromIntegral (minBound :: Int) <= bb && bb <= fromIntegral (maxBound :: Int) 
+    then return $ HiValueAction $ HiActionRand (fromIntegral aa) (fromIntegral bb)
     else throwError HiErrorInvalidArgument
-    -- TODO: fix case in test
 evalHiFun HiFunEcho [HiValueString s] = return $ HiValueAction $ HiActionEcho s
 evalHiFun _ _ = throwError HiErrorInvalidArgument
 

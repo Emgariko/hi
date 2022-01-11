@@ -55,16 +55,7 @@ data HiFun = HiFunDiv
   | HiFunParseTime
   | HiFunRand
   | HiFunEcho
-  -- | HiFunCount
-  -- | HiFunKeys
-  -- | HiFunValues
-  -- | HiFunInvert
   deriving (Show, Eq, Ord, Generics.Generic)
-
--- | HiFunRead
-  -- | HiFunWrite
-  -- | HiFunMkDir
-  -- | HiFunChDir
 
 -- values (numbers, booleans, strings, ...)
 data HiValue = HiValueBool Bool
@@ -76,14 +67,12 @@ data HiValue = HiValueBool Bool
   | HiValueBytes ByteString
   | HiValueAction HiAction
   | HiValueTime UTCTime
-  -- | HiValueDict (Map HiValue HiValue)
   deriving (Show, Eq, Ord, Generics.Generic)
 
 -- expressions (literals, function calls, ...)
 data HiExpr = HiExprValue HiValue
   | HiExprApply HiExpr [HiExpr]
   | HiExprRun HiExpr
-  -- | HiExprDict [(HiExpr, HiExpr)]
   deriving (Eq, Show)
 
 -- evaluation errors (invalid arguments, ...)
