@@ -5,7 +5,7 @@ module HW3.Parser (
 import HW3.Base (HiExpr (..), HiFun (..), HiValue (..), HiAction (..))
 import Data.Void (Void)
 import Text.Megaparsec.Error ( ParseErrorBundle )
-import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between, manyTill)
+import Text.Megaparsec (Parsec, (<|>), parseTest, choice, many, runParser, MonadParsec (eof, notFollowedBy, try), between, manyTill, optional)
 import Text.Megaparsec.Char.Lexer (scientific)
 import qualified Data.Scientific
 import Text.Megaparsec.Char (char, space, string, hexDigitChar)
@@ -16,6 +16,7 @@ import Data.ByteString (ByteString, pack)
 import Data.Char (digitToInt)
 import Data.Word (Word8)
 import Data.Functor (($>))
+import Data.Maybe (fromMaybe)
 
 parse :: String -> Either (ParseErrorBundle String Void) HiExpr
 parse = runParser (space *> pHiExprOps <* eof) ""
@@ -92,12 +93,11 @@ pHiValueByte = lexeme $ do
   let val = fromIntegral $ digitToInt a0 * 16 + digitToInt a1
   return val
 
--- TODO: check upper/lower-cased letters in hexadecimal format
 -- TODO: check can [ #     #    ] be parsed ?
 pHiValueBytes :: Parser ByteString
 pHiValueBytes = do
   _ <- symbol "[#"
-  bytes <- many pHiValueByte -- TODO: is empty bytes array valid?
+  bytes <- many pHiValueByte
   _ <- symbol "#]"
   return $ Data.ByteString.pack bytes
 
@@ -144,10 +144,10 @@ pHiExprValue = HiExprValue <$> pHiValue
 pBracketsList :: Parser HiExpr
 pBracketsList = do
   _ <- symbol "["
-  arg <- pHiExprOps
-  rest <- many (symbol "," *> pHiExprOps)
+  args <- optional pHiExprArgs
   _ <- symbol "]"
-  return $ HiExprApply (HiExprValue (HiValueFunction HiFunList)) (arg : rest)
+  let args_ = fromMaybe [] args
+  return $ HiExprApply (HiExprValue (HiValueFunction HiFunList)) args_
 
 pHiExpr :: Parser HiExpr
 pHiExpr =
@@ -199,9 +199,6 @@ operatorTable =
       _ <- notFollowedBy (char '=')
       return ()
 
--- TODO: check does (if(true, add, sub))(10, 10) work well.
--- FIXME: (add(1, 2))(3, 4)
-
 getHiFun :: HiFun -> (HiExpr -> HiExpr -> HiExpr)
 getHiFun fun a b = HiExprApply (HiExprValue (HiValueFunction fun)) [a, b]
 
@@ -213,5 +210,3 @@ binaryR name f = InfixR (f <$ symbol name)
 
 binary :: String -> (HiExpr -> HiExpr -> HiExpr) -> Operator Parser HiExpr
 binary name f = InfixN (f <$ symbol name)
-
--- TODO: check list cases (empty, ...)
