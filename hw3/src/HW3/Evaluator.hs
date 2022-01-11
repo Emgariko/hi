@@ -287,22 +287,21 @@ evalHiExprApply (HiExprApply e args) args1 = do
 evalHiExprApply _ _ = throwError HiErrorInvalidFunction
 
 evalHiExpr :: HiMonad m => HiExpr -> ExceptTm m
-evalHiExpr (HiExprValue a@(HiValueNumber _)) = return a
-evalHiExpr (HiExprValue a@(HiValueBool _)) = return a
-evalHiExpr (HiExprValue a@(HiValueFunction _)) = return a
-evalHiExpr (HiExprValue a@(HiValueString _)) = return a
-evalHiExpr (HiExprValue a@HiValueNull) = return a
-evalHiExpr (HiExprValue a@(HiValueList _)) = return a
-evalHiExpr (HiExprValue a@(HiValueBytes _)) = return a -- TODO: ?
-evalHiExpr (HiExprValue a@(HiValueAction _)) = return a
-evalHiExpr (HiExprValue a@(HiValueTime _)) = return a
+evalHiExpr (HiExprValue a) = return a
+-- TODO: remove it
+-- evalHiExpr (HiExprValue a@(HiValueBool _)) = return a
+-- evalHiExpr (HiExprValue a@(HiValueFunction _)) = return a
+-- evalHiExpr (HiExprValue a@(HiValueString _)) = return a
+-- evalHiExpr (HiExprValue a@HiValueNull) = return a
+-- evalHiExpr (HiExprValue a@(HiValueList _)) = return a
+-- evalHiExpr (HiExprValue a@(HiValueBytes _)) = return a
+-- evalHiExpr (HiExprValue a@(HiValueAction _)) = return a
+-- evalHiExpr (HiExprValue a@(HiValueTime _)) = return a
 evalHiExpr (HiExprRun expr) = do
     x <- evalHiExpr expr
     case x of
         (HiValueAction act) -> lift $ runAction act
         _ -> throwError HiErrorInvalidArgument
-
-         -- TODO: which error should be thrown?
 evalHiExpr (HiExprApply expr args) = evalHiExprApply expr args
 
 eval :: HiMonad m => HiExpr -> m (Either HiError HiValue)
