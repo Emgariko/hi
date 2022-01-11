@@ -55,6 +55,7 @@ data HiFun = HiFunDiv
   | HiFunChDir
   | HiFunParseTime
   | HiFunRand
+  | HiFunEcho
   deriving (Show, Eq, Ord, Generics.Generic)
 
 -- | HiFunRead
@@ -94,6 +95,7 @@ data HiAction = HiActionRead  FilePath
   | HiActionCwd 
   | HiActionNow
   | HiActionRand Int Int
+  | HiActionEcho Text
   deriving (Show, Eq, Ord, Generics.Generic)
 
 instance Serialise HiFun

@@ -106,3 +106,9 @@ instance HiMonad HIO where
             return $ (HiValueNumber . toRational) v
         )
     }
+    runAction (HiActionEcho text) = HIO { runHIO = 
+        checkPermissionAndThenDo (Just AllowWrite) (do
+            putStrLn $ Data.Text.unpack text
+            return HiValueNull
+        )
+    }

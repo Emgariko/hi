@@ -65,6 +65,7 @@ getArity HiFunMkDir = 1
 getArity HiFunChDir = 1
 getArity HiFunParseTime = 1
 getArity HiFunRand = 2
+getArity HiFunEcho = 1
 
 checkArity :: HiFun -> [HiExpr] -> Bool
 checkArity fun args = let arity = getArity fun in
@@ -152,7 +153,7 @@ evalHiFun HiFunParseTime [HiValueString s] =
 evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] = if isInteger a && isInteger b
                                                                     then return $ HiValueAction $ HiActionRand (fromIntegral $ div a1 a2) (fromIntegral $ div b1 b2)
                                                                     else throwError HiErrorInvalidArgument
--- HiValueAction . HiActionRand a b
+evalHiFun HiFunEcho [HiValueString s] = return $ HiValueAction $ HiActionEcho s
 evalHiFun _ _ = throwError HiErrorInvalidArgument
 
 validateArgs :: HiFun -> [HiValue] -> Maybe HiError
@@ -169,11 +170,34 @@ validateArgsAndThenEval fun es = do
         Nothing -> evalHiFun fun argVals
         Just err -> throwError err
 
+checkLazyEval :: HiMonad m => HiFun -> [HiExpr] -> ExceptTm m
+checkLazyEval HiFunIf [cond, trueBranch, falseBranch] = do
+    condV <- evalHiExpr cond
+    case condV of
+        HiValueBool True -> evalHiExpr trueBranch
+        HiValueBool False -> evalHiExpr falseBranch
+        _ -> throwError HiErrorInvalidArgument
+
+checkLazyEval HiFunAnd [left, right] = do
+    leftV <- evalHiExpr left
+    case leftV of
+        left_@(HiValueBool False) -> return left_
+        left_@HiValueNull -> return left_
+        _ -> evalHiExpr right
+
+checkLazyEval HiFunOr [left, right] = do
+    leftV <- evalHiExpr left
+    case leftV of
+        (HiValueBool False) -> evalHiExpr right
+        HiValueNull -> evalHiExpr right
+        _ -> return leftV
+checkLazyEval fun args = validateArgsAndThenEval fun args
+
 checkArityAndThenEval :: HiMonad m => HiFun -> [HiExpr] -> ExceptTm m
 checkArityAndThenEval fun args =
     let ok = checkArity fun args in
         if ok
-            then validateArgsAndThenEval fun args
+            then checkLazyEval fun args
             else throwError HiErrorArityMismatch
 
 -- TODO: slices null arg
@@ -249,7 +273,6 @@ evalHiExprApply (HiExprValue (HiValueList seq)) args = do
 evalHiExprApply (HiExprValue (HiValueBytes bts)) args = do
     argVals <- traverse evalHiExpr args
     evalBytes bts argVals
-
 evalHiExprApply (HiExprApply e args) args1 = do
     res <- evalHiExprApply e args
     evalHiExprApply (HiExprValue res) args1
