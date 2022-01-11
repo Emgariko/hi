@@ -200,9 +200,11 @@ checkArityAndThenEval fun args =
             then checkLazyEval fun args
             else throwError HiErrorArityMismatch
 
--- TODO: slices null arg
 
 evalString :: HiMonad m => Text -> [HiValue] -> ExceptTm m
+evalString s [HiValueNull, HiValueNull] = return $ HiValueString s
+evalString s [HiValueNull, r] = evalString s [HiValueNumber 0, r]
+evalString s [l, HiValueNull] = evalString s [l, HiValueNumber $ toRational . Data.Text.length $ s]
 evalString s [HiValueNumber ind@(a :% b)] = case a `mod` b of
                                     0 -> let len = Data.Text.length s
                                              ind_ = floor ind in
@@ -223,6 +225,9 @@ evalString s [HiValueNumber l@(al :% bl),
 evalString _ _ = throwError HiErrorInvalidArgument
 
 evalList :: HiMonad m => Seq HiValue -> [HiValue] -> ExceptTm m
+evalList s [HiValueNull, HiValueNull] = return $ HiValueList s
+evalList s [HiValueNull, r] = evalList s [HiValueNumber 0, r]
+evalList s [l, HiValueNull] = evalList s [l, HiValueNumber $ toRational . Data.Sequence.length $ s]
 evalList seq [HiValueNumber ind@(a :% b)] = case a `mod` b of
                                     0 -> let len = Data.Sequence.length seq
                                              ind_ = floor ind in
@@ -243,6 +248,9 @@ evalList seq [HiValueNumber l@(al :% bl),
 evalList _ _ = throwError HiErrorInvalidArgument
 
 evalBytes :: HiMonad m => ByteString -> [HiValue] -> ExceptTm m
+evalBytes bts [HiValueNull, HiValueNull] = return $ HiValueBytes bts
+evalBytes bts [HiValueNull, r] = evalBytes bts [HiValueNumber 0, r]
+evalBytes bts [l, HiValueNull] = evalBytes bts [l, HiValueNumber $ toRational . Data.ByteString.length $ bts]
 evalBytes bts [HiValueNumber ind@(a :% b)] = case a `mod` b of
                                     0 -> let len = Data.ByteString.length bts
                                              ind_ = floor ind in
@@ -306,5 +314,3 @@ parseKek :: String -> HiExpr
 parseKek str = case parse str of
                     (Right x) -> x
                     _ -> undefined
-
--- TODO: check does eval (if(true, add, mul)(1, 2)) work well.
