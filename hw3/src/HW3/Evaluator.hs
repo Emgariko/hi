@@ -23,10 +23,13 @@ import Codec.Serialise (serialise, deserialise)
 import Text.Read (readMaybe)
 import Data.Time (addUTCTime)
 import Data.Time.Clock (diffUTCTime)
+-- import Data.Bitraversable (bimapM)
+-- import Data.Bifunctor (Bifunctor(bimap))
+-- import qualified Data.Map
+-- import Data.Map (Map, (!?))
+-- import qualified Data.Maybe
 
--- type ExceptTm m = ExceptT HiError m HiValue
 type ExceptTm m = ExceptT HiError m HiValue
--- TODO: rename it
 
 getArity :: HiFun -> Int
 getArity HiFunDiv = 2
@@ -66,6 +69,7 @@ getArity HiFunChDir = 1
 getArity HiFunParseTime = 1
 getArity HiFunRand = 2
 getArity HiFunEcho = 1
+-- getArity _ = undefined
 
 checkArity :: HiFun -> [HiExpr] -> Bool
 checkArity fun args = let arity = getArity fun in
@@ -84,19 +88,18 @@ evalHiFun HiFunAdd [HiValueTime a, HiValueNumber b] = return $ HiValueTime $ add
 evalHiFun HiFunAdd [HiValueBytes a, HiValueBytes b] = return $ HiValueBytes $ Data.ByteString.append a b
 evalHiFun HiFunSub [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a - b)
 evalHiFun HiFunSub [HiValueTime a, HiValueTime b] = return $ HiValueNumber $ toRational $ diffUTCTime a b
-evalHiFun HiFunMul [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a * b)                 -- TODO: check if it's an integer
+evalHiFun HiFunMul [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a * b)
 evalHiFun HiFunMul [HiValueString a, HiValueNumber b] = if isInteger b && b > 0
-                                                        then return $ HiValueString $ stimes (floor b) a    -- TODO: number * str ? 
+                                                        then return $ HiValueString $ stimes (floor b) a
                                                         else throwError HiErrorInvalidArgument
 evalHiFun HiFunMul [HiValueList l, HiValueNumber b] =
     if isInteger b && b > 0
-    then return $ HiValueList $ stimes (floor b) l       -- TODO: check if it's an integer
+    then return $ HiValueList $ stimes (floor b) l
     else throwError HiErrorInvalidArgument
 evalHiFun HiFunMul [HiValueBytes a, HiValueNumber b] =
     if isInteger b && b > 0
     then return $ HiValueBytes $ stimes (floor b) a
     else throwError HiErrorInvalidArgument
--- evalHiFun HiFunMul [HiValueList l, HiValueNumber b] = return $ HiValueList stimes b l
 evalHiFun HiFunDiv [HiValueNumber a, HiValueNumber b] = return $ HiValueNumber (a / b)
 evalHiFun HiFunDiv [HiValueString a, HiValueString b] = return $ HiValueString $ intercalate (Data.Text.singleton '/') [a, b]
 evalHiFun HiFunNot [HiValueBool a] = return $ HiValueBool $ not a
@@ -159,10 +162,9 @@ evalHiFun HiFunMkDir [HiValueString path] = return $ HiValueAction $ HiActionMkD
 evalHiFun HiFunChDir [HiValueString path] = return $ HiValueAction $ HiActionChDir (Data.Text.unpack path)
 evalHiFun HiFunParseTime [HiValueString s] =
     return $ maybe HiValueNull HiValueTime (readMaybe $ Data.Text.unpack s)
-evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] = 
+evalHiFun HiFunRand [HiValueNumber a@(a1 :% a2), HiValueNumber b@(b1 :% b2)] =
     let aa = fromIntegral $ div a1 a2
         bb = fromIntegral $ div b1 b2
-        -- TODO: change all div's to znamenatel' value
     in if isInteger a && isInteger b && (minBound :: Int) <= aa && aa <= (maxBound :: Int) && aa <= bb
     then return $ HiValueAction $ HiActionRand aa bb
     else throwError HiErrorInvalidArgument
@@ -283,6 +285,10 @@ evalBytes bts [HiValueNumber l@(al :% bl),
                                             else throwError HiErrorInvalidArgument
 evalBytes _ _ = throwError HiErrorInvalidArgument
 
+-- evalDict :: HiMonad m => Map HiValue HiValue -> HiValue -> ExceptTm m
+-- evalDict dict val =
+--     return $ Data.Maybe.fromMaybe HiValueNull (dict !? val)
+
 evalHiExprApply :: HiMonad m => HiExpr -> [HiExpr] -> ExceptTm m
 evalHiExprApply (HiExprValue (HiValueFunction hiFun)) args = checkArityAndThenEval hiFun args
 evalHiExprApply (HiExprValue (HiValueString s)) args = do
@@ -291,39 +297,43 @@ evalHiExprApply (HiExprValue (HiValueString s)) args = do
 evalHiExprApply (HiExprValue (HiValueList seq)) args = do
     argVals <- traverse evalHiExpr args
     evalList seq argVals
--- TODO: copy-paste in evalList + evalString + evalBytes
 evalHiExprApply (HiExprValue (HiValueBytes bts)) args = do
     argVals <- traverse evalHiExpr args
     evalBytes bts argVals
 evalHiExprApply (HiExprApply e args) args1 = do
     res <- evalHiExprApply e args
     evalHiExprApply (HiExprValue res) args1
+-- evalHiExprApply (HiExprDict dict) args = do
+--     dict_ < evalHiExpr dict
+--     case args of
+--         [x] -> do
+--             arg <- evalHiExpr x
+--             evalDict dict arg
+--         _ -> throwError HiErrorArityMismatch
+
+-- evalHiExprApply (HiExprValue (HiValueDict dict)) args = do
+--     -- dict_ <- evalHiExpr dict
+--     case args of
+--         [x] -> do
+--             arg <- evalHiExpr x
+--             evalDict dict arg
+--         _ -> throwError HiErrorArityMismatch
+
 evalHiExprApply _ _ = throwError HiErrorInvalidFunction
 
 evalHiExpr :: HiMonad m => HiExpr -> ExceptTm m
 evalHiExpr (HiExprValue a) = return a
--- TODO: remove it
--- evalHiExpr (HiExprValue a@(HiValueBool _)) = return a
--- evalHiExpr (HiExprValue a@(HiValueFunction _)) = return a
--- evalHiExpr (HiExprValue a@(HiValueString _)) = return a
--- evalHiExpr (HiExprValue a@HiValueNull) = return a
--- evalHiExpr (HiExprValue a@(HiValueList _)) = return a
--- evalHiExpr (HiExprValue a@(HiValueBytes _)) = return a
--- evalHiExpr (HiExprValue a@(HiValueAction _)) = return a
--- evalHiExpr (HiExprValue a@(HiValueTime _)) = return a
 evalHiExpr (HiExprRun expr) = do
     x <- evalHiExpr expr
     case x of
         (HiValueAction act) -> lift $ runAction act
         _ -> throwError HiErrorInvalidArgument
+-- evalHiExpr (HiExprDict pairs) = do
+--     left <- mapM (evalHiExpr . fst) pairs
+--     right <- mapM (evalHiExpr . snd) pairs
+--     return $ HiValueDict $ Data.Map.fromList $ zip left right
+
 evalHiExpr (HiExprApply expr args) = evalHiExprApply expr args
 
 eval :: HiMonad m => HiExpr -> m (Either HiError HiValue)
--- eval expr = evalHiExpr expr
 eval expr = runExceptT (evalHiExpr expr)
-
--- TODO: remove it.
-parseKek :: String -> HiExpr
-parseKek str = case parse str of
-                    (Right x) -> x
-                    _ -> undefined

@@ -15,8 +15,7 @@ import Data.ByteString (ByteString)
 import qualified GHC.Generics as Generics
 import Codec.Serialise (Serialise)
 import Data.Time (UTCTime)
-
--- FIXME: deriving Show
+import Data.Map (Map)
 
 -- function names (e.g. div, sort, length, ...)
 data HiFun = HiFunDiv
@@ -56,6 +55,10 @@ data HiFun = HiFunDiv
   | HiFunParseTime
   | HiFunRand
   | HiFunEcho
+  -- | HiFunCount
+  -- | HiFunKeys
+  -- | HiFunValues
+  -- | HiFunInvert
   deriving (Show, Eq, Ord, Generics.Generic)
 
 -- | HiFunRead
@@ -73,14 +76,16 @@ data HiValue = HiValueBool Bool
   | HiValueBytes ByteString
   | HiValueAction HiAction
   | HiValueTime UTCTime
+  -- | HiValueDict (Map HiValue HiValue)
   deriving (Show, Eq, Ord, Generics.Generic)
 
 -- expressions (literals, function calls, ...)
 data HiExpr = HiExprValue HiValue
   | HiExprApply HiExpr [HiExpr]
   | HiExprRun HiExpr
+  -- | HiExprDict [(HiExpr, HiExpr)]
   deriving (Eq, Show)
--- TODO: remove
+
 -- evaluation errors (invalid arguments, ...)
 data HiError = HiErrorInvalidArgument
   | HiErrorInvalidFunction

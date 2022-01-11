@@ -19,8 +19,7 @@ import System.Random.Stateful (uniformR, getStdRandom)
 data HiPermission = AllowRead
     | AllowWrite
     | AllowTime
-    deriving (Show, Eq, Ord, Enum, Bounded)
-    -- TODO: remove Enum, Bounded
+    deriving (Show, Eq, Ord)
 
 data PermissionException =
   PermissionRequired HiPermission
@@ -32,7 +31,6 @@ newtype HIO a = HIO { runHIO :: Set HiPermission -> IO a }
 
 instance Functor HIO where
     fmap f HIO { runHIO = g } = HIO { runHIO = fmap f . g}
-    -- fmap = liftM
 
 instance Applicative HIO where
     pure = return
