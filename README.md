@@ -1,9 +1,9 @@
 # Hi Language Interpreter
-*Hi? Нет, бл\*ть Hello.*
+*Hi? Нет, бл\*ть Hello!*
+
+
 
 Hi(experimental language) lang interpreter + repl
-
-
 
 In this homework we will gradually develop a small programming language called Hi.
 
