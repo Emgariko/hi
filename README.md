@@ -1,5 +1,5 @@
 # Hi Language Interpreter
-*Hi? Нет, бл\*ть Hello!*
+*Hi? Нет, бл\*ть, Hello!*
 
 
 
